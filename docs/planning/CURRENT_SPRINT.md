@@ -40,7 +40,7 @@
 ## 当前交付状态
 
 - 当前分支：`codex/initial-project-baseline`
-- 当前提交：`c9987d4 initial project baseline and watch session flow`
+- 当前提交状态：以当前分支 `HEAD` 与当前草稿 PR 的最新提交为准，不再在本文件中固化单个 commit hash
 - 当前 PR：`draft`，用于收口“首个项目基线 + TASK_001 最小闭环”
 - 当前下一步：完成评审前检查，确认共享文档、代码状态、风险状态与 PR 描述一致后进入评审
 

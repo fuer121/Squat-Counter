@@ -25,7 +25,8 @@ struct WatchArchitectureOverviewView: View {
             sessionView(
                 state: viewModel.state,
                 secondaryActionTitle: viewModel.state == .countdown ? "取消" : "暂停",
-                onSecondaryAction: viewModel.state == .countdown ? viewModel.cancelCountdown : viewModel.pauseWorkout
+                onSecondaryAction: viewModel.state == .countdown ? viewModel.cancelCountdown : viewModel.pauseWorkout,
+                showsEndAction: viewModel.state != .countdown
             )
         case .resting:
             restView(isPaused: false, onPrimaryAction: viewModel.completeRest, onPauseAction: viewModel.pauseWorkout)
@@ -71,7 +72,8 @@ struct WatchArchitectureOverviewView: View {
     private func sessionView(
         state: WorkoutState,
         secondaryActionTitle: String?,
-        onSecondaryAction: (() -> Void)?
+        onSecondaryAction: (() -> Void)?,
+        showsEndAction: Bool
     ) -> some View {
         VStack(spacing: 10) {
             Text(sessionTitle(for: state))
@@ -104,8 +106,10 @@ struct WatchArchitectureOverviewView: View {
                     Button(secondaryActionTitle, action: onSecondaryAction)
                 }
 
-                Button("结束", role: .destructive) {
-                    isEndWorkoutAlertPresented = true
+                if showsEndAction {
+                    Button("结束", role: .destructive) {
+                        isEndWorkoutAlertPresented = true
+                    }
                 }
             }
         }
@@ -167,7 +171,7 @@ struct WatchArchitectureOverviewView: View {
         case .resting:
             restView(isPaused: true, onPrimaryAction: viewModel.resumeWorkout, onPauseAction: viewModel.resumeWorkout)
         case .training:
-            sessionView(state: .paused, secondaryActionTitle: nil, onSecondaryAction: nil)
+            sessionView(state: .paused, secondaryActionTitle: nil, onSecondaryAction: nil, showsEndAction: true)
         default:
             configView
         }
