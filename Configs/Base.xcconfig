@@ -1,0 +1,4 @@
+// Shared build settings used across all targets.
+APP_DISPLAY_NAME = Squat Counter
+APP_BUILD_CHANNEL = Release
+
