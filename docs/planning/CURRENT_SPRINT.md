@@ -31,18 +31,18 @@
 
 ## 当前活跃任务
 
-- `TASK_002`：`docs/tasks/TASK_002_PR_SCOPE_AND_HANDOFF.md`
-- 当前直接 owner：`总控 Agent`
+- `TASK_003`：`docs/tasks/TASK_003_TRAINING_CONTROL_BOUNDARY.md`
+- 当前直接 owner：`开发 Agent`
 - 当前线程判断：`主线程`
-- 当前判断理由：当前重点是收口首个 PR 的交付范围与边界，不涉及新的中等以上实现任务
-- 当前状态：`TASK_001` 实现已完成，首个项目基线 PR 已完成评审并准备合入 `main`
+- 当前判断理由：当前重点是为 `6.4 训练控制能力` 冻结职责边界、测试范围与执行约束，尚未进入中等以上实现任务，且用户未确认切换到子线程或 worktree
+- 当前状态：`Task Contract` 已补齐，边界冻结已完成，等待总控 checkpoint 后进入下一阶段执行指令
 
 ## 当前交付状态
 
 - 当前分支：`main`
 - 当前提交状态：以 `main` 分支合入后的最新提交为准，不再在本文件中固化单个 commit hash
 - 当前 PR：首个项目基线 PR 已完成评审并执行合入
-- 当前下一步：从 `6.4 训练控制能力` 开始进入下一个增量任务周期
+- 当前下一步：在总控 checkpoint 确认后，从 `6.4 训练控制能力` 的 `TimerManager / HapticManager` 实现阶段开始进入下一个增量任务周期
 
 ## 本阶段禁止扩展
 
