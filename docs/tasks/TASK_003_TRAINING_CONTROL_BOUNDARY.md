@@ -16,6 +16,7 @@
 ## 输入与输出
 
 - 输入文档：
+  - `PRD/PRD_V1.md`
   - `AGENTS.md`
   - `docs/agents/AGENT_SYSTEM.md`
   - `docs/planning/CURRENT_SPRINT.md`
@@ -80,6 +81,9 @@
 - `remainingRestSeconds` 继续只表示 `resting` 剩余时间，不与训练前倒计时复用语义
 
 ## 产品侧补充口径
+
+- 总控说明：
+  - `PRD/PRD_V1.md` 已被正式纳入本轮产品口径回收范围，作为 `TASK_003` 的并行产品输入，而非脏改动或无关改动
 
 - 倒计时态产品规则：
   - 仅支持 `取消`，不提供 `暂停`、`结束训练`、`+1 / -1`
