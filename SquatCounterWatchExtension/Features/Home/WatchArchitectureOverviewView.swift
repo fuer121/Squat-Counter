@@ -1,19 +1,26 @@
 import SwiftUI
 
 struct WatchArchitectureOverviewView: View {
-    @StateObject private var viewModel = WorkoutSessionViewModel()
+    @StateObject private var viewModel: WorkoutSessionViewModel
     @State private var isEndWorkoutAlertPresented = false
 
+    init() {
+        _viewModel = StateObject(
+            wrappedValue: WorkoutSessionViewModel(
+                hapticManager: HapticManager(performer: WatchHapticPerformer())
+            )
+        )
+    }
+
     var body: some View {
-        activeContent
-            .alert("结束训练？", isPresented: $isEndWorkoutAlertPresented) {
-                Button("继续训练", role: .cancel) {}
-                Button("结束", role: .destructive) {
-                    viewModel.confirmEndWorkout()
-                }
-            } message: {
-                Text("确认后会丢弃当前进度并返回首页。")
+        activeContent.alert("结束本次训练？", isPresented: $isEndWorkoutAlertPresented) {
+            Button("继续训练", role: .cancel) {}
+            Button("结束训练", role: .destructive) {
+                viewModel.confirmEndWorkout()
             }
+        } message: {
+            Text("当前进度将被丢弃")
+        }
     }
 
     @ViewBuilder
@@ -21,12 +28,16 @@ struct WatchArchitectureOverviewView: View {
         switch viewModel.state {
         case .idle:
             configView
-        case .countdown, .training:
+        case .countdown:
+            countdownView
+        case .training:
             sessionView(
                 state: viewModel.state,
-                secondaryActionTitle: viewModel.state == .countdown ? "取消" : "暂停",
-                onSecondaryAction: viewModel.state == .countdown ? viewModel.cancelCountdown : viewModel.pauseWorkout,
-                showsEndAction: viewModel.state != .countdown
+                primaryActionTitle: primaryButtonTitle(for: viewModel.state),
+                onPrimaryAction: primaryActionForSessionState,
+                secondaryActionTitle: "暂停",
+                onSecondaryAction: viewModel.pauseWorkout,
+                showsEndAction: true
             )
         case .resting:
             restView(isPaused: false, onPrimaryAction: viewModel.completeRest, onPauseAction: viewModel.pauseWorkout)
@@ -69,8 +80,28 @@ struct WatchArchitectureOverviewView: View {
         }
     }
 
+    private var countdownView: some View {
+        VStack(spacing: 10) {
+            Text("准备开始")
+                .font(.headline)
+
+            Text("\(max(viewModel.countdownRemainingSeconds, 0))")
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+
+            Text("倒计时结束后自动进入训练态。")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+
+            Button("取消", action: viewModel.cancelCountdown)
+        }
+        .padding()
+    }
+
     private func sessionView(
         state: WorkoutState,
+        primaryActionTitle: String?,
+        onPrimaryAction: (() -> Void)?,
         secondaryActionTitle: String?,
         onSecondaryAction: (() -> Void)?,
         showsEndAction: Bool
@@ -91,8 +122,10 @@ struct WatchArchitectureOverviewView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
 
-            Button(primaryButtonTitle(for: state), action: primaryActionForSessionState)
-                .buttonStyle(.borderedProminent)
+            if let primaryActionTitle, let onPrimaryAction {
+                Button(primaryActionTitle, action: onPrimaryAction)
+                    .buttonStyle(.borderedProminent)
+            }
 
             if state == .training {
                 HStack {
@@ -133,11 +166,14 @@ struct WatchArchitectureOverviewView: View {
             Text("\(viewModel.progress.remainingRestSeconds)s")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
 
-            Button(isPaused ? "继续休息" : "开始下一组", action: onPrimaryAction)
+            Button(isPaused ? "继续休息" : "提前开始", action: onPrimaryAction)
                 .buttonStyle(.borderedProminent)
 
             HStack {
-                Button(isPaused ? "继续" : "暂停", action: onPauseAction)
+                if isPaused == false {
+                    Button("暂停", action: onPauseAction)
+                }
+
                 Button("结束", role: .destructive) {
                     isEndWorkoutAlertPresented = true
                 }
@@ -171,7 +207,14 @@ struct WatchArchitectureOverviewView: View {
         case .resting:
             restView(isPaused: true, onPrimaryAction: viewModel.resumeWorkout, onPauseAction: viewModel.resumeWorkout)
         case .training:
-            sessionView(state: .paused, secondaryActionTitle: nil, onSecondaryAction: nil, showsEndAction: true)
+            sessionView(
+                state: .paused,
+                primaryActionTitle: "继续训练",
+                onPrimaryAction: viewModel.resumeWorkout,
+                secondaryActionTitle: nil,
+                onSecondaryAction: nil,
+                showsEndAction: true
+            )
         default:
             configView
         }
@@ -220,8 +263,6 @@ struct WatchArchitectureOverviewView: View {
 
     private func primaryActionForSessionState() {
         switch viewModel.state {
-        case .countdown:
-            viewModel.completeCountdown()
         case .training:
             viewModel.incrementRep()
         case .paused:
@@ -253,8 +294,6 @@ struct WatchArchitectureOverviewView: View {
 
     private func sessionHint(for state: WorkoutState) -> String {
         switch state {
-        case .countdown:
-            return "固定倒计时 3 秒，当前用按钮推进到训练态。"
         case .paused:
             return "保持当前训练进度，恢复后继续。"
         default:
@@ -264,8 +303,6 @@ struct WatchArchitectureOverviewView: View {
 
     private func primaryButtonTitle(for state: WorkoutState) -> String {
         switch state {
-        case .countdown:
-            return "进入训练"
         case .paused:
             return "继续"
         default:
