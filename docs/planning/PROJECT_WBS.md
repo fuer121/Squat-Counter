@@ -250,8 +250,8 @@
   - `SquatCounterTests` 完整成功结果包包含 `16` 个测试，状态为 `succeeded`
   - `WorkoutConfigTests`、`TimerManagerTests`、`HapticManagerTests` 均包含在该次成功结果内
   - `SquatCounterWatchApp` 最小构建已通过
-- 当前正进行 PR #2 的评审前文档与契约收口
-- 下一步在总控 checkpoint 确认后，重新进入 PR #2 正式评审
+- 当前正进行 PR #2 的正式评审
+- 下一步在总控 checkpoint 确认后，判断是否可合入 `main`
 
 ---
 
