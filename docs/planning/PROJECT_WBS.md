@@ -244,12 +244,14 @@
 #### 当前待办
 
 - 已完成 `TASK_003` 边界冻结与产品口径回收，确认 `TimerManager`、`HapticManager` 与 `WorkoutSessionViewModel` 的职责边界
+- 已补齐 `TASK_004` 实现契约，明确当前 PR #2 由实现阶段 Task Contract 承接
 - 已完成训练控制事件模型、`TimerManager`、`HapticManager`、`WorkoutSessionViewModel` 接入与 Watch 端最小震动执行落地
 - 已完成相关自动化验证：
   - `SquatCounterTests` 完整成功结果包包含 `16` 个测试，状态为 `succeeded`
   - `WorkoutConfigTests`、`TimerManagerTests`、`HapticManagerTests` 均包含在该次成功结果内
   - `SquatCounterWatchApp` 最小构建已通过
-- 下一步由总控执行 checkpoint，判断是否进入真机反馈验证、PR 收口或切换到后续任务
+- 当前正进行 PR #2 的评审前文档与契约收口
+- 下一步在总控 checkpoint 确认后，重新进入 PR #2 正式评审
 
 ---
 
