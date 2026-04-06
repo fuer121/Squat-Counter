@@ -39,10 +39,10 @@
 
 ## 当前交付状态
 
-- 当前分支：`main`
-- 当前提交状态：以 `main` 分支合入后的最新提交为准，不再在本文件中固化单个 commit hash
-- 当前 PR：首个项目基线 PR 已完成评审并执行合入
-- 当前下一步：在总控 checkpoint 确认后，从 `6.4 训练控制能力` 的 `TimerManager / HapticManager` 实现阶段开始进入下一个增量任务周期
+- 当前分支：`codex/task-003-training-control-boundary`
+- 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
+- 当前 PR：`TASK_003` 当前不创建 PR，先完成边界冻结与产品口径回收收口
+- 当前下一步：推送当前任务分支最新提交，并在总控 checkpoint 确认后进入 `6.4 训练控制能力` 的实现派单
 
 ## 本阶段禁止扩展
 
