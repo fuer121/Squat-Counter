@@ -2,7 +2,7 @@
 
 一款运行在 Apple Watch 上的独立训练 App，帮助用户在做深蹲时实现自动计数、节奏辅助和组间休息提醒，让用户专注动作本身而不是手动记数。
 
-> 当前仓库处于 **MVP 需求定义阶段**，核心需求见 [PRD/PRD_V1.md](PRD/PRD_V1.md)。
+> 当前仓库处于 **工程骨架完成，进入核心实现期**，核心需求见 [PRD/PRD_V1.md](PRD/PRD_V1.md)。
 
 ## 项目目标（MVP）
 
@@ -116,13 +116,24 @@ stateDiagram-v2
 
 ## 仓库说明
 
-当前仓库重点用于沉淀产品需求与实现约束。建议后续在该仓库内补充：
+当前仓库已同时承载三类内容：
 
-- watchOS 工程代码
-- 单元测试与状态机测试
-- 识别算法实验记录
-- MVP 开发任务拆解（Issue / Milestone）
+- 工程代码：`SquatCounteriOS`、`SquatCounterWatchExtension`、`Shared`
+- 项目基线：`PRD/`、`docs/architecture/`、`docs/planning/`
+- 协作规则：`AGENTS.md`、`docs/agents/`、`docs/release/`
+- 经验沉淀：`docs/knowledge/`
+
+## 项目协作结构
+
+- `docs/agents/`：角色定义、任务模板、拆分规则
+- `docs/planning/`：阶段、风险、决策、任务状态
+- `docs/release/`：发布、部署、回滚、测试门禁
+- `docs/knowledge/`：可复用的方法论经验沉淀
 
 ## 参考文档
 
 - 需求文档（V1）：[PRD/PRD_V1.md](PRD/PRD_V1.md)
+- 架构说明：[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
+- 项目执行基线：[docs/planning/PROJECT_WBS.md](docs/planning/PROJECT_WBS.md)
+- 当前阶段：[docs/planning/CURRENT_SPRINT.md](docs/planning/CURRENT_SPRINT.md)
+- Agent 体系：[docs/agents/AGENT_SYSTEM.md](docs/agents/AGENT_SYSTEM.md)
