@@ -250,8 +250,8 @@
   - `SquatCounterTests` 完整成功结果包包含 `16` 个测试，状态为 `succeeded`
   - `WorkoutConfigTests`、`TimerManagerTests`、`HapticManagerTests` 均包含在该次成功结果内
   - `SquatCounterWatchApp` 最小构建已通过
-- 当前正进行 PR #2 的正式评审
-- 下一步在总控 checkpoint 确认后，判断是否可合入 `main`
+- `PR #2` 已合入 `main`，`6.4` 已完成主线收口
+- 下一步等待总控派发下一任务
 
 ---
 
@@ -259,7 +259,7 @@
 
 #### 模块状态
 
-- 状态：`未开始`
+- 状态：`进行中`
 - 阶段目标：完成可替换、可调参的 MVP 识别模块
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
@@ -273,7 +273,12 @@
 
 #### 当前待办
 
-- 先将识别模块与 UI 完全解耦
+- 已补齐 `TASK_005` 正式契约，冻结 `SquatDetectionManager` 只输出事件、不直接改 UI、训练状态或震动
+- 已冻结“模拟识别模式”为 `6.5` 首批联调入口，且仅作为开发 / 联调模式，不作为 `1.0` 用户公开配置项
+- 已冻结首批实现顺序：先事件接口与模拟识别，再补简化识别状态机、`cooldown`、防误触基线与内部可调阈值，最后做真机调优
+- 已冻结与 `WorkoutSessionViewModel`、`TimerManager`、`HapticManager` 的接口边界
+- 已冻结首批测试与真机验证口径
+- 下一步等待总控 checkpoint，并派发 `6.5` 实现任务
 
 ---
 

@@ -31,18 +31,18 @@
 
 ## 当前活跃任务
 
-- `TASK_004`：`docs/tasks/TASK_004_TRAINING_CONTROL_IMPLEMENTATION.md`
+- `TASK_005`：`docs/tasks/TASK_005_SQUAT_DETECTION_BOUNDARY.md`
 - 当前直接 owner：`开发 Agent`
 - 当前线程判断：`开发 Agent 子线程`
-- 当前判断理由：`TASK_003` 已完成边界冻结与产品口径回收，`TASK_004` 正式承接 `6.4` 实现、验证与 PR 交付，保持实现阶段与冻结阶段契约分离
-- 当前状态：`TASK_003` 已完成，`TASK_004` 已完成最小实现与自动化验证，当前处于 PR #2 正式评审阶段
+- 当前判断理由：`6.4` 已完成主线收口，当前需要先在共享文档内冻结 `6.5` 动作识别边界、联调入口与验证口径，再由总控决定后续实现任务的交付方式
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已补齐正式契约并完成共享文档回写，当前等待总控 checkpoint
 
 ## 当前交付状态
 
-- 当前分支：`codex/task-003-training-control-boundary`
+- 当前分支：`main`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`PR #2` 已创建，当前正在进行正式评审
-- 当前下一步：完成正式评审并判断是否可合入 `main`
+- 当前 PR：`PR #2` 已合入 `main`
+- 当前下一步：由总控读取 `TASK_005` 并执行 checkpoint，决定 `6.5` 的实现拆分与派发
 
 ## 本阶段禁止扩展
 
