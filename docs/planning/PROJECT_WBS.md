@@ -280,8 +280,8 @@
 - 已完成 Watch 端模拟识别联调入口接入，保留手动 `+1 / -1` 作为纠错能力
 - 已完成与 `6.5` 直接相关的单测与集成测试验证：`WorkoutSessionViewModelTests` 与 `SquatDetectionManagerTests` 共 `17` 个测试通过
 - 已完成 `SquatCounterWatchApp` 的 Watch Simulator 最小构建验证，结果通过
-- 已创建独立增量 `PR #3`，当前进入评审前检查阶段
-- 下一步由总控执行 `PR #3` 评审前检查，并判断是否进入正式评审或先继续真机识别调优
+- 已创建独立增量 `PR #3`，当前进入正式评审阶段
+- 下一步由总控完成 `PR #3` 正式评审，并判断是否可合入 `main` 或先继续真机识别调优
 
 ---
 
