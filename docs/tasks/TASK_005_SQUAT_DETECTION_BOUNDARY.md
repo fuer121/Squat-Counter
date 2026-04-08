@@ -6,6 +6,7 @@
 - 任务目标：在不进入动作识别实现编码的前提下，冻结 `SquatDetectionManager` 的职责边界、首批实现范围、与 `WorkoutSessionViewModel` / `TimerManager` / `HapticManager` 的接口边界，以及首批测试与真机验证口径，为后续 `6.5` 实现任务提供唯一有效执行口径
 - 优先级：`P0`
 - 当前阶段：`阶段 2：可开工`
+- 后续承接：`6.5` 实现阶段由 `docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md` 承接；本任务只覆盖边界冻结与实现准备
 
 ## owner 与协作
 

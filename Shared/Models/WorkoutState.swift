@@ -21,21 +21,28 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private let timerManager: any TimerManaging
     private let hapticManager: any HapticManaging
+    private let detectionManager: any SquatDetectionManaging
+    private let detectionMode: SquatDetectionMode
     private let tempoCueInterval: TimeInterval
 
     init(
         config: WorkoutConfig = WorkoutConfig(),
         timerManager: any TimerManaging = TimerManager(),
         hapticManager: any HapticManaging = HapticManager(),
+        detectionManager: any SquatDetectionManaging = SquatDetectionManager(),
+        detectionMode: SquatDetectionMode = .simulation,
         tempoCueInterval: TimeInterval = WorkoutSessionViewModel.defaultTempoCueInterval
     ) {
         self.config = config
         self.timerManager = timerManager
         self.hapticManager = hapticManager
+        self.detectionManager = detectionManager
+        self.detectionMode = detectionMode
         self.tempoCueInterval = tempoCueInterval
     }
 
     func startWorkout() {
+        detectionManager.stop()
         progress = .empty
         pauseContext = nil
         countdownRemainingSeconds = config.countdownSeconds
@@ -48,19 +55,13 @@ final class WorkoutSessionViewModel: ObservableObject {
         returnToHome()
     }
 
-    func incrementRep() {
+    func simulateRepDetection() {
         guard state == .training else { return }
-        guard progress.currentRep < config.repsPerSet else { return }
+        detectionManager.simulateRep()
+    }
 
-        progress.currentRep += 1
-        progress.totalCompletedReps += 1
-
-        guard progress.currentRep == config.repsPerSet else {
-            hapticManager.play(.repCompleted)
-            return
-        }
-
-        completeCurrentSet()
+    func incrementRep() {
+        applyRepIncrement()
     }
 
     func decrementRep() {
@@ -74,6 +75,11 @@ final class WorkoutSessionViewModel: ObservableObject {
     func pauseWorkout() {
         guard state == .training || state == .resting else { return }
         pauseContext = PauseContext(resumeTarget: state)
+
+        if state == .training {
+            detectionManager.pause()
+        }
+
         timerManager.pause()
         state = .paused
     }
@@ -82,6 +88,11 @@ final class WorkoutSessionViewModel: ObservableObject {
         guard state == .paused, let resumeTarget = pauseContext?.resumeTarget else { return }
         pauseContext = nil
         state = resumeTarget
+
+        if resumeTarget == .training {
+            detectionManager.resume()
+        }
+
         timerManager.resume()
     }
 
@@ -103,6 +114,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func returnToHome() {
+        detectionManager.stop()
         timerManager.cancel()
         progress = .empty
         pauseContext = nil
@@ -110,7 +122,24 @@ final class WorkoutSessionViewModel: ObservableObject {
         state = .idle
     }
 
+    private func applyRepIncrement() {
+        guard state == .training else { return }
+        guard progress.currentRep < config.repsPerSet else { return }
+
+        progress.currentRep += 1
+        progress.totalCompletedReps += 1
+
+        guard progress.currentRep == config.repsPerSet else {
+            hapticManager.play(.repCompleted)
+            return
+        }
+
+        completeCurrentSet()
+    }
+
     private func completeCurrentSet() {
+        detectionManager.stop()
+
         if progress.currentSet >= config.totalSets {
             timerManager.cancel()
             progress.remainingRestSeconds = 0
@@ -130,6 +159,12 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func startTimer(_ context: TrainingTimerContext) {
         timerManager.start(context) { [weak self] event in
             self?.handleTimerEvent(event)
+        }
+    }
+
+    private func startDetection() {
+        detectionManager.start(mode: detectionMode) { [weak self] event in
+            self?.handleDetectionEvent(event)
         }
     }
 
@@ -156,10 +191,20 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
     }
 
+    private func handleDetectionEvent(_ event: SquatDetectionEvent) {
+        switch event {
+        case .repDetected:
+            applyRepIncrement()
+        case .motionStateChanged:
+            break
+        }
+    }
+
     private func enterTrainingState(triggeredBy hapticEvent: TrainingHapticEvent) {
         countdownRemainingSeconds = 0
         progress.remainingRestSeconds = 0
         state = .training
+        startDetection()
 
         if config.tempoCueEnabled {
             startTimer(.tempo(interval: tempoCueInterval))

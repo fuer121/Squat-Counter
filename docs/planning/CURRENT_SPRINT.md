@@ -32,17 +32,18 @@
 ## 当前活跃任务
 
 - `TASK_005`：`docs/tasks/TASK_005_SQUAT_DETECTION_BOUNDARY.md`
+- `TASK_006`：`docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent`
 - 当前线程判断：`开发 Agent 子线程`
-- 当前判断理由：`6.4` 已完成主线收口，当前需要先在共享文档内冻结 `6.5` 动作识别边界、联调入口与验证口径，再由总控决定后续实现任务的交付方式
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已补齐正式契约并完成共享文档回写，当前等待总控 checkpoint
+- 当前判断理由：`TASK_005` 已完成边界冻结，`TASK_006` 已合法承接当前分支上的 `6.5` 最小实现；本轮已完成与 `6.5` 直接相关的 `17` 个测试用例验证和 Watch 模拟器最小构建验证，下一步需要由总控基于当前代码与共享文档执行 checkpoint，判断是否进入 PR 准备或继续真机调优
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已承接 `6.5` 最小实现；本轮 `6.5` 直接相关验证结果为 `17` 个测试全部通过、`SquatCounterWatchApp` Watch Simulator 最小构建通过，当前等待总控 checkpoint
 
 ## 当前交付状态
 
-- 当前分支：`main`
+- 当前分支：`codex/task-005-detection-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`PR #2` 已合入 `main`
-- 当前下一步：由总控读取 `TASK_005` 并执行 checkpoint，决定 `6.5` 的实现拆分与派发
+- 当前 PR：`无`
+- 当前下一步：由总控同时读取 `TASK_005`、`TASK_006`、本轮 `17` 个相关测试通过结果与 Watch Simulator 构建结果，执行 checkpoint 并决定是否进入 PR 准备或继续真机识别调优
 
 ## 本阶段禁止扩展
 
