@@ -264,7 +264,7 @@ struct WatchArchitectureOverviewView: View {
     private func primaryActionForSessionState() {
         switch viewModel.state {
         case .training:
-            viewModel.incrementRep()
+            viewModel.simulateRepDetection()
         case .paused:
             viewModel.resumeWorkout()
         default:
@@ -297,7 +297,7 @@ struct WatchArchitectureOverviewView: View {
         case .paused:
             return "保持当前训练进度，恢复后继续。"
         default:
-            return "当前先用手动 +1 / -1 模拟主流程。"
+            return "当前先用模拟识别联调主流程，+1 / -1 仅用于手动纠错。"
         }
     }
 
@@ -306,7 +306,7 @@ struct WatchArchitectureOverviewView: View {
         case .paused:
             return "继续"
         default:
-            return "模拟 +1"
+            return "模拟识别"
         }
     }
 }

@@ -270,16 +270,93 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.pauseContext)
     }
 
+    func testSimulationDetectionEventIncrementsRepDuringTraining() {
+        let scheduler = TestTimerScheduler()
+        let clock = TestClock()
+        let hapticManager = HapticManagerSpy()
+        let detectionManager = SquatDetectionManager(now: clock.now)
+        let viewModel = makeTrainingViewModel(
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: hapticManager,
+            detectionManager: detectionManager,
+            scheduler: scheduler
+        )
+
+        viewModel.simulateRepDetection()
+
+        XCTAssertEqual(viewModel.progress.currentRep, 1)
+        XCTAssertEqual(viewModel.progress.totalCompletedReps, 1)
+        XCTAssertEqual(hapticManager.playedEvents.last, .repCompleted)
+    }
+
+    func testDetectionLifecycleTracksTrainingStateOnly() {
+        let scheduler = TestTimerScheduler()
+        let hapticManager = HapticManagerSpy()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            config: WorkoutConfig(repsPerSet: 5, totalSets: 2, restSeconds: 15),
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: hapticManager,
+            detectionManager: detectionManager,
+            tempoCueInterval: 2.0
+        )
+
+        viewModel.startWorkout()
+        XCTAssertEqual(detectionManager.startModes, [])
+        XCTAssertEqual(detectionManager.stopCount, 1)
+
+        scheduler.advance(by: 3)
+        XCTAssertEqual(detectionManager.startModes, [.simulation])
+
+        viewModel.pauseWorkout()
+        XCTAssertEqual(detectionManager.pauseCount, 1)
+
+        viewModel.resumeWorkout()
+        XCTAssertEqual(detectionManager.resumeCount, 1)
+
+        completeCurrentSet(on: viewModel, repsPerSet: 5)
+        XCTAssertEqual(viewModel.state, .resting)
+        XCTAssertEqual(detectionManager.stopCount, 2)
+
+        viewModel.completeRest()
+        XCTAssertEqual(viewModel.state, .training)
+        XCTAssertEqual(detectionManager.startModes, [.simulation, .simulation])
+
+        viewModel.confirmEndWorkout()
+        XCTAssertEqual(viewModel.state, .idle)
+        XCTAssertEqual(detectionManager.stopCount, 3)
+    }
+
+    func testRepDetectedIsIgnoredWhenViewModelIsPaused() {
+        let scheduler = TestTimerScheduler()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = makeTrainingViewModel(
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            scheduler: scheduler
+        )
+
+        viewModel.pauseWorkout()
+        detectionManager.emit(.repDetected)
+
+        XCTAssertEqual(viewModel.state, .paused)
+        XCTAssertEqual(viewModel.progress.currentRep, 0)
+        XCTAssertEqual(viewModel.progress.totalCompletedReps, 0)
+    }
+
     private func makeTrainingViewModel(
         config: WorkoutConfig = WorkoutConfig(),
         timerManager: any TimerManaging,
         hapticManager: any HapticManaging,
+        detectionManager: any SquatDetectionManaging = SquatDetectionManagerSpy(),
         scheduler: TestTimerScheduler
     ) -> WorkoutSessionViewModel {
         let viewModel = WorkoutSessionViewModel(
             config: config,
             timerManager: timerManager,
             hapticManager: hapticManager,
+            detectionManager: detectionManager,
             tempoCueInterval: 2.0
         )
         viewModel.startWorkout()
@@ -291,6 +368,108 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         for _ in 0..<repsPerSet {
             viewModel.incrementRep()
         }
+    }
+}
+
+final class SquatDetectionManagerTests: XCTestCase {
+    func testSimulationModeEmitsRepAndRespectsCooldown() {
+        let clock = TestClock()
+        let manager = SquatDetectionManager(now: clock.now)
+        var events: [SquatDetectionEvent] = []
+
+        manager.start(mode: .simulation) { events.append($0) }
+        manager.simulateRep()
+        manager.simulateRep()
+
+        XCTAssertEqual(events, [
+            .motionStateChanged(.descending),
+            .motionStateChanged(.bottom),
+            .motionStateChanged(.ascending),
+            .motionStateChanged(.repCompleted),
+            .repDetected,
+            .motionStateChanged(.standing)
+        ])
+
+        clock.advance(by: 1.0)
+        manager.simulateRep()
+
+        XCTAssertEqual(events.filter { $0 == .repDetected }.count, 2)
+    }
+
+    func testLiveModeRecognizesAFullRepAfterStableStanding() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.3,
+            bottomThreshold: 0.7,
+            ascendingThreshold: 0.45,
+            standingThreshold: 0.12,
+            standingStabilityDuration: 0.3,
+            cooldownDuration: 0.8,
+            maximumWristRaiseMagnitude: 0.45
+        )
+        let manager = SquatDetectionManager(thresholds: thresholds)
+        var events: [SquatDetectionEvent] = []
+
+        manager.start(mode: .live) { events.append($0) }
+        manager.process(SquatMotionSample(timestamp: 0.0, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.35, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.45, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 0.55, normalizedDepth: 0.75))
+        manager.process(SquatMotionSample(timestamp: 0.7, normalizedDepth: 0.4))
+        manager.process(SquatMotionSample(timestamp: 0.85, normalizedDepth: 0.05))
+
+        XCTAssertEqual(events, [
+            .motionStateChanged(.descending),
+            .motionStateChanged(.bottom),
+            .motionStateChanged(.ascending),
+            .motionStateChanged(.repCompleted),
+            .repDetected,
+            .motionStateChanged(.standing)
+        ])
+    }
+
+    func testLiveModeRejectsHalfSquatAndWristRaiseFalseTrigger() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.3,
+            bottomThreshold: 0.7,
+            ascendingThreshold: 0.45,
+            standingThreshold: 0.12,
+            standingStabilityDuration: 0.3,
+            cooldownDuration: 0.8,
+            maximumWristRaiseMagnitude: 0.25
+        )
+        let manager = SquatDetectionManager(thresholds: thresholds)
+        var events: [SquatDetectionEvent] = []
+
+        manager.start(mode: .live) { events.append($0) }
+        manager.process(SquatMotionSample(timestamp: 0.0, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.35, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.45, normalizedDepth: 0.4))
+        manager.process(SquatMotionSample(timestamp: 0.6, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 1.0, normalizedDepth: 0.1, wristRaiseMagnitude: 0.6))
+        manager.process(SquatMotionSample(timestamp: 1.2, normalizedDepth: 0.05))
+
+        XCTAssertFalse(events.contains(.repDetected))
+        XCTAssertEqual(manager.currentMotionState, .standing)
+    }
+
+    func testThresholdsClampIntoSupportedRanges() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.0,
+            bottomThreshold: 0.1,
+            ascendingThreshold: 2.0,
+            standingThreshold: -1.0,
+            standingStabilityDuration: -1.0,
+            cooldownDuration: -1.0,
+            maximumWristRaiseMagnitude: 3.0
+        )
+
+        XCTAssertEqual(thresholds.standingThreshold, 0.0)
+        XCTAssertGreaterThan(thresholds.descendingThreshold, thresholds.standingThreshold)
+        XCTAssertGreaterThan(thresholds.bottomThreshold, thresholds.descendingThreshold)
+        XCTAssertLessThan(thresholds.ascendingThreshold, thresholds.bottomThreshold)
+        XCTAssertEqual(thresholds.standingStabilityDuration, 0.0)
+        XCTAssertEqual(thresholds.cooldownDuration, 0.0)
+        XCTAssertEqual(thresholds.maximumWristRaiseMagnitude, 1.0)
     }
 }
 
@@ -398,6 +577,74 @@ private final class TestTimerToken: TimerCancellation {
 
     func cancel() {
         onCancel(id)
+    }
+}
+
+private final class TestClock {
+    private(set) var currentTime: TimeInterval = 0
+
+    func now() -> TimeInterval {
+        currentTime
+    }
+
+    func advance(by interval: TimeInterval) {
+        currentTime += interval
+    }
+}
+
+private final class SquatDetectionManagerSpy: SquatDetectionManaging {
+    private(set) var startModes: [SquatDetectionMode] = []
+    private(set) var pauseCount = 0
+    private(set) var resumeCount = 0
+    private(set) var stopCount = 0
+    private(set) var simulatedRepCount = 0
+    private(set) var processedSamples: [SquatMotionSample] = []
+    private var handler: ((SquatDetectionEvent) -> Void)?
+
+    private(set) var mode: SquatDetectionMode?
+    private(set) var isActive = false
+    private(set) var isPaused = false
+    private(set) var currentMotionState: SquatMotionState = .standing
+    let thresholds = SquatDetectionThresholds()
+
+    func start(mode: SquatDetectionMode, handler: @escaping (SquatDetectionEvent) -> Void) {
+        startModes.append(mode)
+        self.mode = mode
+        self.handler = handler
+        isActive = true
+        isPaused = false
+        currentMotionState = .standing
+    }
+
+    func pause() {
+        pauseCount += 1
+        isPaused = true
+    }
+
+    func resume() {
+        resumeCount += 1
+        isPaused = false
+    }
+
+    func stop() {
+        stopCount += 1
+        mode = nil
+        handler = nil
+        isActive = false
+        isPaused = false
+        currentMotionState = .standing
+    }
+
+    func simulateRep() {
+        simulatedRepCount += 1
+    }
+
+    func process(_ sample: SquatMotionSample) {
+        processedSamples.append(sample)
+    }
+
+    func emit(_ event: SquatDetectionEvent) {
+        handler?(event)
     }
 }
 

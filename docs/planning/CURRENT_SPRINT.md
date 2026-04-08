@@ -31,18 +31,19 @@
 
 ## 当前活跃任务
 
-- `TASK_004`：`docs/tasks/TASK_004_TRAINING_CONTROL_IMPLEMENTATION.md`
+- `TASK_005`：`docs/tasks/TASK_005_SQUAT_DETECTION_BOUNDARY.md`
+- `TASK_006`：`docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent`
 - 当前线程判断：`开发 Agent 子线程`
-- 当前判断理由：`TASK_003` 已完成边界冻结与产品口径回收，`TASK_004` 正式承接 `6.4` 实现、验证与 PR 交付，保持实现阶段与冻结阶段契约分离
-- 当前状态：`TASK_003` 已完成，`TASK_004` 已完成最小实现与自动化验证，当前处于 PR #2 正式评审阶段
+- 当前判断理由：`TASK_005` 已完成边界冻结，`TASK_006` 已合法承接当前分支上的 `6.5` 最小实现；本轮已完成与 `6.5` 直接相关的 `17` 个测试用例验证和 Watch 模拟器最小构建验证，`PR #3` 已创建，当前进入正式评审阶段
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已承接 `6.5` 最小实现；本轮 `6.5` 直接相关验证结果为 `17` 个测试全部通过、`SquatCounterWatchApp` Watch Simulator 最小构建通过，`PR #3` 已创建，当前正由总控执行正式评审
 
 ## 当前交付状态
 
-- 当前分支：`codex/task-003-training-control-boundary`
+- 当前分支：`codex/task-005-detection-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`PR #2` 已创建，当前正在进行正式评审
-- 当前下一步：完成正式评审并判断是否可合入 `main`
+- 当前 PR：`#3`
+- 当前下一步：由总控同时读取 `TASK_005`、`TASK_006`、本轮 `17` 个相关测试通过结果、Watch Simulator 构建结果与 `PR #3` 状态，完成正式评审并判断是否可合入 `main`
 
 ## 本阶段禁止扩展
 
