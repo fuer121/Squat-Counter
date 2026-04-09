@@ -9,7 +9,8 @@
 1. 跑通 Watch 端训练主流程
 2. 用模拟识别先完成可联调闭环
 3. 明确 iPhone companion 与同步边界
-4. 前置测试、权限、隐私与发布门禁
+4. 在进入 iPhone Companion 实现前冻结 `6.6` 页面范围与职责边界
+5. 前置测试、权限、隐私与发布门禁
 
 ## 当前顺序
 
@@ -18,8 +19,9 @@
 1. `WorkoutSessionViewModel` 与 Watch 主流程
 2. `TimerManager`、`HapticManager`
 3. 模拟识别与识别状态机
-4. iPhone 配置同步与训练结果回传
-5. HealthKit、隐私、发布基线补齐
+4. `TASK_007`：iPhone Companion 边界冻结与实现准备
+5. `6.7`：iPhone 配置同步与训练结果回传
+6. HealthKit、隐私、发布基线补齐
 
 ## 当前 owner 建议
 
@@ -33,17 +35,18 @@
 
 - `TASK_005`：`docs/tasks/TASK_005_SQUAT_DETECTION_BOUNDARY.md`
 - `TASK_006`：`docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md`
-- 当前直接 owner：`开发 Agent`
-- 当前线程判断：`开发 Agent 子线程`
-- 当前判断理由：`TASK_005` 已完成边界冻结，`TASK_006` 已合法承接 `6.5` 最小实现；本轮已完成与 `6.5` 直接相关的 `17` 个测试用例验证和 Watch 模拟器最小构建验证，且 `PR #3` 已合入 `main`，当前应回到主线等待总控派发下一任务
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`；本轮 `6.5` 直接相关验证结果为 `17` 个测试全部通过、`SquatCounterWatchApp` Watch Simulator 最小构建通过，当前已完成主线收口
+- `TASK_007`：`docs/tasks/TASK_007_IPHONE_COMPANION_BOUNDARY.md`
+- 当前直接 owner：`开发 Agent 1`
+- 当前线程判断：`TASK_007 文档收口分支`
+- 当前判断理由：`PR #3` 已合入 `main`，`6.5` 主线工作已完成；在进入 iPhone Companion `6.6` 实现前，需要先将 `TASK_007` 的需求补全结果和分支治理结果独立收口，避免 `6.6` 页面实现与需求/规划文档提交混在同一任务中
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成 `6.6` 前置边界冻结与产品侧补全；当前正将 `TASK_007` 相关共享文档收口到独立任务分支，完成后回总控执行 checkpoint，判断是否允许进入 `6.6` 实现
 
 ## 当前交付状态
 
-- 当前分支：`main`
-- 当前提交状态：以 `main` 分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`PR #3 已合入`
-- 当前下一步：等待总控派发下一任务
+- 当前分支：`codex/task-007-iphone-boundary`
+- 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
+- 当前 PR：`无`（本轮仅收口 `TASK_007` 文档，不创建 PR）
+- 当前下一步：由总控同时读取 `TASK_007`、`CURRENT_SPRINT`、`PRD_V1`、`PROJECT_WBS`、`DECISIONS`、`RISKS` 的回写结果，完成 checkpoint 并判断 `6.6` 是否可进入实现，以及是否需要为后续 companion 实现切换独立分支或任务契约
 
 ## 本阶段禁止扩展
 
