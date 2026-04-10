@@ -20,8 +20,9 @@
 2. `TimerManager`、`HapticManager`
 3. 模拟识别与识别状态机
 4. `TASK_007`：iPhone Companion 边界冻结与实现准备
-5. `6.7`：iPhone 配置同步与训练结果回传
-6. HealthKit、隐私、发布基线补齐
+5. `TASK_008`：iPhone Companion 实现契约补齐
+6. `6.7`：iPhone 配置同步与训练结果回传
+7. HealthKit、隐私、发布基线补齐
 
 ## 当前 owner 建议
 
@@ -36,17 +37,18 @@
 - `TASK_005`：`docs/tasks/TASK_005_SQUAT_DETECTION_BOUNDARY.md`
 - `TASK_006`：`docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md`
 - `TASK_007`：`docs/tasks/TASK_007_IPHONE_COMPANION_BOUNDARY.md`
+- `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent 1`
-- 当前线程判断：`TASK_007 文档收口分支`
-- 当前判断理由：`PR #3` 已合入 `main`，`6.5` 主线工作已完成；在进入 iPhone Companion `6.6` 实现前，需要先将 `TASK_007` 的需求补全结果和分支治理结果独立收口，避免 `6.6` 页面实现与需求/规划文档提交混在同一任务中
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成 `6.6` 前置边界冻结与产品侧补全；当前正将 `TASK_007` 相关共享文档收口到独立任务分支，完成后回总控执行 checkpoint，判断是否允许进入 `6.6` 实现
+- 当前线程判断：`TASK_008 契约补齐分支`
+- 当前判断理由：`TASK_007` 已完成边界冻结并独立收口，但在进入 `6.6` 页面实现前，仍需通过 `TASK_008` 正式冻结实现文件范围、本地持久化边界、最小验证方式和明确排除项，避免实现阶段再次吸收 `6.7`、历史页或实时状态能力
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成实现契约补齐；当前等待总控读取共享文档并执行 checkpoint，判断是否允许进入 `6.6` 功能实现
 
 ## 当前交付状态
 
 - 当前分支：`codex/task-007-iphone-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
 - 当前 PR：`无`（本轮仅收口 `TASK_007` 文档，不创建 PR）
-- 当前下一步：由总控同时读取 `TASK_007`、`CURRENT_SPRINT`、`PRD_V1`、`PROJECT_WBS`、`DECISIONS`、`RISKS` 的回写结果，完成 checkpoint 并判断 `6.6` 是否可进入实现，以及是否需要为后续 companion 实现切换独立分支或任务契约
+- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 的回写结果，完成 checkpoint 并判断 `6.6` 是否可进入实现，以及是否继续沿用当前分支承接首批页面实现
 
 ## 本阶段禁止扩展
 
