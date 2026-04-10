@@ -19,7 +19,7 @@
 
 ### 低风险
 
-- companion 模拟器测试链路耗时异常，影响测试效率但不阻塞当前主流程实现
+- companion iOS 模拟器测试链路在 `xcodebuild test` 与定向 `test-without-building` 执行阶段卡住；当前现象为模拟器已 `Booted`，但 `xctest` 宿主未启动，`build-for-testing` 已通过；当前影响完整测试执行确认，不阻塞 `6.6` 页面实现代码落地
 
 ## 应对原则
 

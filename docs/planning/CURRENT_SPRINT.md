@@ -39,16 +39,16 @@
 - `TASK_007`：`docs/tasks/TASK_007_IPHONE_COMPANION_BOUNDARY.md`
 - `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent 1`
-- 当前线程判断：`TASK_008 契约补齐分支`
-- 当前判断理由：`TASK_007` 已完成边界冻结并独立收口，但在进入 `6.6` 页面实现前，仍需通过 `TASK_008` 正式冻结实现文件范围、本地持久化边界、最小验证方式和明确排除项，避免实现阶段再次吸收 `6.7`、历史页或实时状态能力
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成实现契约补齐；当前等待总控读取共享文档并执行 checkpoint，判断是否允许进入 `6.6` 功能实现
+- 当前线程判断：`codex/task-007-iphone-boundary`
+- 当前判断理由：`TASK_007` 与 `TASK_008` 已先后冻结 `6.6` 的页面范围、实现文件边界和验证口径；当前分支已继续承接首批 iPhone Companion 页面实现，但在总控 checkpoint 前不创建 PR、不进入 `6.7`
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现；当前已完成 iOS 最小构建与 `build-for-testing` 验证，但完整 `xcodebuild test` 与定向 `test-without-building` 均在当前环境执行阶段卡住，等待总控结合共享文档与验证结果执行 checkpoint
 
 ## 当前交付状态
 
 - 当前分支：`codex/task-007-iphone-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`无`（本轮仅收口 `TASK_007` 文档，不创建 PR）
-- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 的回写结果，完成 checkpoint 并判断 `6.6` 是否可进入实现，以及是否继续沿用当前分支承接首批页面实现
+- 当前 PR：`无`（当前分支已进入 `6.6` 实现，但按要求仍不创建 PR）
+- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 与本轮 iOS 构建 / test build 结果，完成 checkpoint 并判断 `6.6` 是否满足当前阶段验收、是否需要在更稳定环境补跑完整测试执行，以及是否继续沿用当前分支进入下一任务
 
 ## 本阶段禁止扩展
 

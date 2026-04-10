@@ -20,6 +20,56 @@ final class WorkoutConfigTests: XCTestCase {
     }
 }
 
+final class WorkoutConfigStoreTests: XCTestCase {
+    func testStoreReturnsDefaultConfigWhenNothingIsSaved() {
+        let suiteName = #function
+        let defaults = makeUserDefaults(suiteName: suiteName)
+        let store = UserDefaultsWorkoutConfigStore(defaults: defaults)
+
+        let config = store.loadConfig()
+
+        XCTAssertEqual(config, WorkoutConfig())
+    }
+
+    func testStorePersistsConfigAcrossStoreInstances() {
+        let suiteName = #function
+        let defaults = makeUserDefaults(suiteName: suiteName)
+        let store = UserDefaultsWorkoutConfigStore(defaults: defaults)
+        let saved = WorkoutConfig(repsPerSet: 22, totalSets: 5, restSeconds: 75)
+
+        store.saveConfig(saved)
+
+        let reloaded = UserDefaultsWorkoutConfigStore(defaults: defaults).loadConfig()
+
+        XCTAssertEqual(reloaded.repsPerSet, 22)
+        XCTAssertEqual(reloaded.totalSets, 5)
+        XCTAssertEqual(reloaded.restSeconds, 75)
+        XCTAssertEqual(reloaded.countdownSeconds, WorkoutConfig.countdownSeconds)
+        XCTAssertTrue(reloaded.tempoCueEnabled)
+    }
+
+    func testStorePersistsClampedConfigValues() {
+        let suiteName = #function
+        let defaults = makeUserDefaults(suiteName: suiteName)
+        let store = UserDefaultsWorkoutConfigStore(defaults: defaults)
+        let saved = WorkoutConfig(repsPerSet: 200, totalSets: 0, restSeconds: 999)
+
+        store.saveConfig(saved)
+
+        let reloaded = store.loadConfig()
+
+        XCTAssertEqual(reloaded.repsPerSet, 50)
+        XCTAssertEqual(reloaded.totalSets, 1)
+        XCTAssertEqual(reloaded.restSeconds, 120)
+    }
+
+    private func makeUserDefaults(suiteName: String) -> UserDefaults {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+}
+
 final class WorkoutSessionViewModelTests: XCTestCase {
     func testStartCountdownCancelsAndCompletesAutomatically() {
         let scheduler = TestTimerScheduler()
@@ -472,6 +522,7 @@ final class SquatDetectionManagerTests: XCTestCase {
         XCTAssertEqual(thresholds.maximumWristRaiseMagnitude, 1.0)
     }
 }
+
 
 final class TimerManagerTests: XCTestCase {
     func testTimerManagerKeepsOnlyOneActiveContext() {
