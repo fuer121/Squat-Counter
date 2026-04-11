@@ -9,7 +9,8 @@
 1. 跑通 Watch 端训练主流程
 2. 用模拟识别先完成可联调闭环
 3. 明确 iPhone companion 与同步边界
-4. 前置测试、权限、隐私与发布门禁
+4. 在进入 iPhone Companion 实现前冻结 `6.6` 页面范围与职责边界
+5. 前置测试、权限、隐私与发布门禁
 
 ## 当前顺序
 
@@ -18,8 +19,10 @@
 1. `WorkoutSessionViewModel` 与 Watch 主流程
 2. `TimerManager`、`HapticManager`
 3. 模拟识别与识别状态机
-4. iPhone 配置同步与训练结果回传
-5. HealthKit、隐私、发布基线补齐
+4. `TASK_007`：iPhone Companion 边界冻结与实现准备
+5. `TASK_008`：iPhone Companion 实现契约补齐
+6. `6.7`：iPhone 配置同步与训练结果回传
+7. HealthKit、隐私、发布基线补齐
 
 ## 当前 owner 建议
 
@@ -33,17 +36,19 @@
 
 - `TASK_005`：`docs/tasks/TASK_005_SQUAT_DETECTION_BOUNDARY.md`
 - `TASK_006`：`docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md`
-- 当前直接 owner：`开发 Agent`
-- 当前线程判断：`开发 Agent 子线程`
-- 当前判断理由：`TASK_005` 已完成边界冻结，`TASK_006` 已合法承接 `6.5` 最小实现；本轮已完成与 `6.5` 直接相关的 `17` 个测试用例验证和 Watch 模拟器最小构建验证，且 `PR #3` 已合入 `main`，当前应回到主线等待总控派发下一任务
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`；本轮 `6.5` 直接相关验证结果为 `17` 个测试全部通过、`SquatCounterWatchApp` Watch Simulator 最小构建通过，当前已完成主线收口
+- `TASK_007`：`docs/tasks/TASK_007_IPHONE_COMPANION_BOUNDARY.md`
+- `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
+- 当前直接 owner：`开发 Agent 1`
+- 当前线程判断：`codex/task-007-iphone-boundary`
+- 当前判断理由：`TASK_007` 与 `TASK_008` 已先后冻结 `6.6` 的页面范围、实现文件边界和验证口径；当前分支已承接首批 iPhone Companion 页面实现，并已形成独立增量 PR，当前进入正式评审阶段，不进入 `6.7`
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现；当前已完成 iOS 最小构建与 `build-for-testing` 验证，且 `PR #4` 已转为 `Ready for review`；完整 `xcodebuild test` 与定向 `test-without-building` 仍在当前环境执行阶段卡住，当前进入正式评审阶段
 
 ## 当前交付状态
 
-- 当前分支：`main`
-- 当前提交状态：以 `main` 分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`PR #3 已合入`
-- 当前下一步：等待总控派发下一任务
+- 当前分支：`codex/task-007-iphone-boundary`
+- 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
+- 当前 PR：`#4`（`6.6 iPhone Companion` 独立增量 PR 已创建，当前正处于正式评审中）
+- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 与 `PR #4` 的状态，完成最终合入 checkpoint 并判断是否可合入 `main`
 
 ## 本阶段禁止扩展
 
