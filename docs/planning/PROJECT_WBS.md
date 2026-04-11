@@ -317,7 +317,8 @@
 - 已补齐 `6.6` 直接相关的本地持久化测试，并完成 `xcodebuild build` 与 `xcodebuild build-for-testing`
 - 已尝试用 `test-without-building` 只运行 `WorkoutConfigTests` 与 `WorkoutConfigStoreTests`；当前现象为模拟器已 `Booted`，但测试命令停在执行前、`xctest` 宿主未启动
 - 当前可确认“`6.6` 直接相关测试已成功编译进入产物”，但完整测试执行结果仍需总控判断是否在更稳定环境补跑
-- 下一步由总控执行 checkpoint，并判断 `6.6` 是否按当前验证口径进入下一阶段，或先补齐完整测试执行结果
+- `PR #4` 已创建，当前进入评审前检查前的文档状态收口阶段
+- 下一步由总控执行 `PR #4` 评审前检查，并判断是否进入正式评审
 
 ---
 
