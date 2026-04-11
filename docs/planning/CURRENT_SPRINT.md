@@ -40,15 +40,15 @@
 - `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent 1`
 - 当前线程判断：`codex/task-007-iphone-boundary`
-- 当前判断理由：`TASK_007` 与 `TASK_008` 已先后冻结 `6.6` 的页面范围、实现文件边界和验证口径；当前分支已承接首批 iPhone Companion 页面实现，并已形成独立增量 PR，下一步进入评审前门禁检查，不进入 `6.7`
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现；当前已完成 iOS 最小构建与 `build-for-testing` 验证，且 `PR #4` 已创建；完整 `xcodebuild test` 与定向 `test-without-building` 仍在当前环境执行阶段卡住，当前进入评审前检查前的文档状态收口
+- 当前判断理由：`TASK_007` 与 `TASK_008` 已先后冻结 `6.6` 的页面范围、实现文件边界和验证口径；当前分支已承接首批 iPhone Companion 页面实现，并已形成独立增量 PR，当前进入正式评审阶段，不进入 `6.7`
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现；当前已完成 iOS 最小构建与 `build-for-testing` 验证，且 `PR #4` 已转为 `Ready for review`；完整 `xcodebuild test` 与定向 `test-without-building` 仍在当前环境执行阶段卡住，当前进入正式评审阶段
 
 ## 当前交付状态
 
 - 当前分支：`codex/task-007-iphone-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`#4`（`6.6 iPhone Companion` 独立增量 PR 已创建，当前等待评审前检查）
-- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 与 `PR #4` 的状态，完成评审前检查并判断是否进入正式评审
+- 当前 PR：`#4`（`6.6 iPhone Companion` 独立增量 PR 已创建，当前正处于正式评审中）
+- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 与 `PR #4` 的状态，完成最终合入 checkpoint 并判断是否可合入 `main`
 
 ## 本阶段禁止扩展
 
