@@ -39,16 +39,16 @@
 - `TASK_007`：`docs/tasks/TASK_007_IPHONE_COMPANION_BOUNDARY.md`
 - `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent 1`
-- 当前线程判断：`codex/task-007-iphone-boundary`
-- 当前判断理由：`TASK_007` 与 `TASK_008` 已先后冻结 `6.6` 的页面范围、实现文件边界和验证口径；当前分支已承接首批 iPhone Companion 页面实现，并已形成独立增量 PR，当前进入正式评审阶段，不进入 `6.7`
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现；当前已完成 iOS 最小构建与 `build-for-testing` 验证，且 `PR #4` 已转为 `Ready for review`；完整 `xcodebuild test` 与定向 `test-without-building` 仍在当前环境执行阶段卡住，当前进入正式评审阶段
+- 当前线程判断：`main`
+- 当前判断理由：`PR #4` 已合入 `main`，`6.6` 首批实现已完成主线收口；当前不再停留在 `codex/task-007-iphone-boundary` 评审语境，也不直接进入 `6.7`
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`；当前已完成 iOS 最小构建与 `build-for-testing` 验证，完整 `xcodebuild test` 与定向 `test-without-building` 在当前环境执行阶段卡住的现象已作为残余风险记录，当前等待总控派发下一任务
 
 ## 当前交付状态
 
-- 当前分支：`codex/task-007-iphone-boundary`
-- 当前提交状态：以当前任务分支 `HEAD` 为准，不再在本文件中固化单个 commit hash
-- 当前 PR：`#4`（`6.6 iPhone Companion` 独立增量 PR 已创建，当前正处于正式评审中）
-- 当前下一步：由总控同时读取 `TASK_007`、`TASK_008`、`CURRENT_SPRINT`、`PROJECT_WBS`、`RISKS` 与 `PR #4` 的状态，完成最终合入 checkpoint 并判断是否可合入 `main`
+- 当前分支：`main`
+- 当前提交状态：以主线当前 `HEAD` 为准，不在本文件中固化单个 commit hash
+- 当前 PR：`无`（`PR #4` 已合入 `main`，`6.6 iPhone Companion` 已完成主线收口）
+- 当前下一步：等待总控派发下一任务；若进入后续模块，必须先补齐对应 Task Contract 与共享文档状态
 
 ## 本阶段禁止扩展
 

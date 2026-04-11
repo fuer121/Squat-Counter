@@ -290,7 +290,7 @@
 
 #### 模块状态
 
-- 状态：`进行中`
+- 状态：`已完成`
 - 阶段目标：在不侵入 Watch 主流程和 `6.7` 同步实现的前提下，让 iPhone 端承担配置、引导和辅助能力
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
@@ -317,8 +317,8 @@
 - 已补齐 `6.6` 直接相关的本地持久化测试，并完成 `xcodebuild build` 与 `xcodebuild build-for-testing`
 - 已尝试用 `test-without-building` 只运行 `WorkoutConfigTests` 与 `WorkoutConfigStoreTests`；当前现象为模拟器已 `Booted`，但测试命令停在执行前、`xctest` 宿主未启动
 - 当前可确认“`6.6` 直接相关测试已成功编译进入产物”，但完整测试执行结果仍需总控判断是否在更稳定环境补跑
-- `PR #4` 已创建并转为 `Ready for review`，当前进入正式评审阶段
-- 下一步由总控执行最终合入 checkpoint，并判断是否可合入 `main`
+- `PR #4` 已合入 `main`，`6.6 iPhone Companion` 已完成主线收口
+- 下一步等待总控派发下一任务；若进入 `6.7` 或其他模块，需先补齐对应 Task Contract
 
 ---
 
