@@ -224,7 +224,7 @@ struct WatchArchitectureOverviewView: View {
         Binding(
             get: { viewModel.config.repsPerSet },
             set: { newValue in
-                viewModel.config = updatedConfig(repsPerSet: newValue)
+                viewModel.updateReps(newValue)
             }
         )
     }
@@ -233,7 +233,7 @@ struct WatchArchitectureOverviewView: View {
         Binding(
             get: { viewModel.config.totalSets },
             set: { newValue in
-                viewModel.config = updatedConfig(totalSets: newValue)
+                viewModel.updateSets(newValue)
             }
         )
     }
@@ -242,22 +242,8 @@ struct WatchArchitectureOverviewView: View {
         Binding(
             get: { viewModel.config.restSeconds },
             set: { newValue in
-                viewModel.config = updatedConfig(restSeconds: newValue)
+                viewModel.updateRest(newValue)
             }
-        )
-    }
-
-    private func updatedConfig(
-        repsPerSet: Int? = nil,
-        totalSets: Int? = nil,
-        restSeconds: Int? = nil
-    ) -> WorkoutConfig {
-        WorkoutConfig(
-            repsPerSet: repsPerSet ?? viewModel.config.repsPerSet,
-            totalSets: totalSets ?? viewModel.config.totalSets,
-            restSeconds: restSeconds ?? viewModel.config.restSeconds,
-            countdownSeconds: viewModel.config.countdownSeconds,
-            tempoCueEnabled: viewModel.config.tempoCueEnabled
         )
     }
 

@@ -8,6 +8,7 @@ struct PhoneCompanionHomeView: View {
             List {
                 overviewSection
                 defaultConfigSummarySection
+                latestSummarySection
                 navigationSection
                 companionBoundarySection
             }
@@ -81,10 +82,31 @@ struct PhoneCompanionHomeView: View {
         }
     }
 
+    @ViewBuilder
+    private var latestSummarySection: some View {
+        if let headline = viewModel.latestSummaryHeadline,
+           let detail = viewModel.latestSummaryDetail,
+           let timestamp = viewModel.latestSummaryTimestamp {
+            Section("最近一次训练摘要") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(headline)
+                        .font(.body.weight(.medium))
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text(timestamp)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
     private var companionBoundarySection: some View {
         Section("当前边界") {
             Text("不提供历史页、训练结果页、实时训练控制或实时状态镜像。")
-            Text("默认参数仅保存在本机 iPhone，后续由 6.7 承接同步。")
+            Text("默认参数会同步到 Watch 的下一次训练默认值；首页只承接最近一次训练摘要，不扩展为历史页。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -132,7 +154,7 @@ private struct PhoneCompanionOnboardingView: View {
                 )
                 onboardingCard(
                     title: "2. 默认参数",
-                    detail: "每组次数、组数和休息时间先保存在本机 iPhone；当前阶段不承诺已同步到 Watch。"
+                    detail: "每组次数、组数和休息时间会同步到 Watch 的下一次训练默认值；当前不提供实时训练控制。"
                 )
                 onboardingCard(
                     title: "3. 帮助与支持",
@@ -195,7 +217,7 @@ private struct PhoneCompanionConfigView: View {
                 Text(viewModel.saveStatusMessage)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Text("当前页面只管理本机默认参数，不提供同步成功态。")
+                Text("当前页面会同步默认参数到 Watch 的下一次训练默认值，但不提供实时训练控制。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

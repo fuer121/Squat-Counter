@@ -20,6 +20,39 @@ final class WorkoutConfigTests: XCTestCase {
     }
 }
 
+final class SyncPayloadTests: XCTestCase {
+    func testConfigPayloadRoundTripsThroughJSONEncoding() throws {
+        let payload = SyncPayload.config(WorkoutConfig(repsPerSet: 18, totalSets: 4, restSeconds: 45))
+        let data = try JSONEncoder().encode(payload)
+
+        let decoded = try JSONDecoder().decode(SyncPayload.self, from: data)
+
+        XCTAssertEqual(decoded.kind, .config)
+        XCTAssertEqual(decoded.config?.repsPerSet, 18)
+        XCTAssertEqual(decoded.config?.totalSets, 4)
+        XCTAssertEqual(decoded.config?.restSeconds, 45)
+        XCTAssertNil(decoded.summary)
+    }
+
+    func testWorkoutSummaryPayloadRoundTripsThroughJSONEncoding() throws {
+        let summary = WorkoutSummary(
+            id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+            completedAt: Date(timeIntervalSince1970: 1_710_000_000),
+            totalSets: 3,
+            totalReps: 45,
+            durationSeconds: 120
+        )
+        let payload = SyncPayload.workoutSummary(summary, updatedAt: summary.completedAt)
+        let data = try JSONEncoder().encode(payload)
+
+        let decoded = try JSONDecoder().decode(SyncPayload.self, from: data)
+
+        XCTAssertEqual(decoded.kind, .workoutSummary)
+        XCTAssertEqual(decoded.summary, summary)
+        XCTAssertNil(decoded.config)
+    }
+}
+
 final class WorkoutConfigStoreTests: XCTestCase {
     func testStoreReturnsDefaultConfigWhenNothingIsSaved() {
         let suiteName = #function
@@ -395,8 +428,74 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.progress.totalCompletedReps, 0)
     }
 
+    func testReceivingConfigDuringTrainingQueuesItUntilSessionEnds() {
+        let suiteName = #function
+        let defaults = makeUserDefaults(suiteName: suiteName)
+        let store = UserDefaultsWorkoutConfigStore(defaults: defaults)
+        let scheduler = TestTimerScheduler()
+        let notificationCenter = NotificationCenter()
+        let viewModel = makeTrainingViewModel(
+            config: WorkoutConfig(repsPerSet: 10, totalSets: 2, restSeconds: 30),
+            configStore: store,
+            notificationCenter: notificationCenter,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            scheduler: scheduler
+        )
+
+        let incomingConfig = WorkoutConfig(repsPerSet: 20, totalSets: 4, restSeconds: 60)
+        SyncPayloadNotification.post(
+            .config(incomingConfig, updatedAt: Date(timeIntervalSince1970: 100)),
+            notificationCenter: notificationCenter
+        )
+        drainMainRunLoop()
+
+        XCTAssertEqual(viewModel.config.repsPerSet, 10)
+        XCTAssertEqual(store.loadConfig().repsPerSet, 20)
+
+        viewModel.confirmEndWorkout()
+
+        XCTAssertEqual(viewModel.state, .idle)
+        XCTAssertEqual(viewModel.config.repsPerSet, 20)
+        XCTAssertEqual(viewModel.config.totalSets, 4)
+        XCTAssertEqual(viewModel.config.restSeconds, 60)
+    }
+
+    func testCompletingWorkoutSendsLatestSummaryPayload() {
+        let scheduler = TestTimerScheduler()
+        let syncCoordinator = SyncCoordinatorSpy()
+        let clock = TestDateClock(start: Date(timeIntervalSince1970: 1_700_000_000))
+        let summarySent = expectation(description: "workout summary sent")
+        syncCoordinator.onSend = { _ in
+            summarySent.fulfill()
+        }
+        let viewModel = makeTrainingViewModel(
+            config: WorkoutConfig(repsPerSet: 5, totalSets: 1, restSeconds: 30),
+            syncCoordinator: syncCoordinator,
+            now: clock.now,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            scheduler: scheduler
+        )
+
+        clock.advance(by: 42)
+        completeCurrentSet(on: viewModel, repsPerSet: 5)
+        wait(for: [summarySent], timeout: 1.0)
+
+        XCTAssertEqual(viewModel.state, .completed)
+        XCTAssertEqual(syncCoordinator.sentPayloads.count, 1)
+        XCTAssertEqual(syncCoordinator.sentPayloads.first?.kind, .workoutSummary)
+        XCTAssertEqual(syncCoordinator.sentPayloads.first?.summary?.totalReps, 5)
+        XCTAssertEqual(syncCoordinator.sentPayloads.first?.summary?.totalSets, 1)
+        XCTAssertEqual(syncCoordinator.sentPayloads.first?.summary?.durationSeconds, 42)
+    }
+
     private func makeTrainingViewModel(
         config: WorkoutConfig = WorkoutConfig(),
+        configStore: WorkoutConfigStoring = UserDefaultsWorkoutConfigStore(defaults: UserDefaults(suiteName: UUID().uuidString)!),
+        syncCoordinator: any WatchConnectivitySyncing = NoopSyncCoordinator(),
+        notificationCenter: NotificationCenter = .default,
+        now: @escaping () -> Date = Date.init,
         timerManager: any TimerManaging,
         hapticManager: any HapticManaging,
         detectionManager: any SquatDetectionManaging = SquatDetectionManagerSpy(),
@@ -404,6 +503,10 @@ final class WorkoutSessionViewModelTests: XCTestCase {
     ) -> WorkoutSessionViewModel {
         let viewModel = WorkoutSessionViewModel(
             config: config,
+            configStore: configStore,
+            syncCoordinator: syncCoordinator,
+            notificationCenter: notificationCenter,
+            now: now,
             timerManager: timerManager,
             hapticManager: hapticManager,
             detectionManager: detectionManager,
@@ -418,6 +521,16 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         for _ in 0..<repsPerSet {
             viewModel.incrementRep()
         }
+    }
+
+    private func makeUserDefaults(suiteName: String) -> UserDefaults {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+
+    private func drainMainRunLoop() {
+        RunLoop.main.run(until: Date().addingTimeInterval(0.01))
     }
 }
 
@@ -721,5 +834,31 @@ private final class HapticPerformerSpy: HapticPerforming {
 
     func perform(_ pattern: TrainingHapticPattern) {
         patterns.append(pattern)
+    }
+}
+
+private final class SyncCoordinatorSpy: WatchConnectivitySyncing, @unchecked Sendable {
+    private(set) var sentPayloads: [SyncPayload] = []
+    var onSend: (@Sendable (SyncPayload) -> Void)?
+
+    func send(payload: SyncPayload) async throws {
+        sentPayloads.append(payload)
+        onSend?(payload)
+    }
+}
+
+private final class TestDateClock {
+    private(set) var currentDate: Date
+
+    init(start: Date) {
+        currentDate = start
+    }
+
+    func now() -> Date {
+        currentDate
+    }
+
+    func advance(by interval: TimeInterval) {
+        currentDate.addTimeInterval(interval)
     }
 }

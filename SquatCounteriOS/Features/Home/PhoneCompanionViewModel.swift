@@ -70,11 +70,13 @@ struct PhoneCompanionInfoItem: Identifiable, Equatable {
 final class PhoneCompanionViewModel: ObservableObject {
     private enum Keys {
         static let onboardingCompleted = "phoneCompanion.onboardingCompleted"
+        static let latestSummary = "phoneCompanion.latestWorkoutSummary"
     }
 
     @Published private(set) var config: WorkoutConfig
     @Published private(set) var shouldPresentOnboarding: Bool
     @Published private(set) var saveStatusMessage: String
+    @Published private(set) var latestSummary: WorkoutSummary?
 
     let routes: [PhoneCompanionRoute]
     let supportItems: [PhoneCompanionSupportItem]
@@ -82,17 +84,26 @@ final class PhoneCompanionViewModel: ObservableObject {
 
     private let store: WorkoutConfigStoring
     private let defaults: UserDefaults
+    private let syncCoordinator: any WatchConnectivitySyncing
+    private let notificationCenter: NotificationCenter
+    private let encoder = JSONEncoder()
+    private var payloadObserver: NSObjectProtocol?
 
     init(
         store: WorkoutConfigStoring = UserDefaultsWorkoutConfigStore(),
+        syncCoordinator: any WatchConnectivitySyncing = WatchConnectivitySyncCoordinator.shared,
+        notificationCenter: NotificationCenter = .default,
         defaults: UserDefaults = .standard,
         bundle: Bundle = .main
     ) {
         self.store = store
+        self.syncCoordinator = syncCoordinator
+        self.notificationCenter = notificationCenter
         self.defaults = defaults
         self.config = store.loadConfig()
         self.shouldPresentOnboarding = !defaults.bool(forKey: Keys.onboardingCompleted)
         self.saveStatusMessage = "默认参数仅保存在本机 iPhone，不代表已同步到 Watch。"
+        self.latestSummary = Self.loadLatestSummary(defaults: defaults)
         self.routes = PhoneCompanionRoute.allCases
         self.supportItems = [
             PhoneCompanionSupportItem(
@@ -117,10 +128,35 @@ final class PhoneCompanionViewModel: ObservableObject {
             PhoneCompanionInfoItem(id: "scope", title: "1.0 范围", value: "无历史页 / 无实时训练控制"),
             PhoneCompanionInfoItem(id: "version", title: "当前版本", value: Self.makeVersionText(bundle: bundle))
         ]
+        observeSyncPayloads()
     }
 
     var configSummary: String {
         "每组 \(config.repsPerSet) 次 · 共 \(config.totalSets) 组 · 休息 \(config.restSeconds) 秒"
+    }
+
+    var latestSummaryHeadline: String? {
+        guard let latestSummary else {
+            return nil
+        }
+
+        return "共 \(latestSummary.totalReps) 次 · \(latestSummary.totalSets) 组"
+    }
+
+    var latestSummaryDetail: String? {
+        guard let latestSummary else {
+            return nil
+        }
+
+        return "训练时长 \(latestSummary.durationSeconds) 秒"
+    }
+
+    var latestSummaryTimestamp: String? {
+        guard let latestSummary else {
+            return nil
+        }
+
+        return Self.summaryDateFormatter.string(from: latestSummary.completedAt)
     }
 
     func presentOnboarding() {
@@ -149,7 +185,68 @@ final class PhoneCompanionViewModel: ObservableObject {
 
     private func persist() {
         store.saveConfig(config)
-        saveStatusMessage = "默认参数已保存到本机 iPhone，不代表已同步到 Watch。"
+        saveStatusMessage = "默认参数已保存到本机 iPhone，正在同步到 Watch。"
+
+        let payload = SyncPayload.config(config)
+
+        Task { [weak self] in
+            do {
+                try await self?.syncCoordinator.send(payload: payload)
+                await MainActor.run {
+                    self?.saveStatusMessage = "默认参数已同步到 Watch 的下一次训练默认值。"
+                }
+            } catch {
+                await MainActor.run {
+                    self?.saveStatusMessage = "默认参数已保存到本机 iPhone；Watch 尚未收到同步。"
+                }
+            }
+        }
+    }
+
+    private func observeSyncPayloads() {
+        payloadObserver = notificationCenter.addObserver(
+            forName: SyncPayloadNotification.didReceive,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let payload = SyncPayloadNotification.payload(from: notification) else {
+                return
+            }
+
+            self?.handleIncomingSyncPayload(payload)
+        }
+    }
+
+    private func handleIncomingSyncPayload(_ payload: SyncPayload) {
+        guard payload.kind == .workoutSummary, let summary = payload.summary else {
+            return
+        }
+
+        guard latestSummary?.id != summary.id else {
+            return
+        }
+
+        latestSummary = summary
+        persistLatestSummary(summary)
+    }
+
+    private func persistLatestSummary(_ summary: WorkoutSummary) {
+        guard let data = try? encoder.encode(summary) else {
+            return
+        }
+
+        defaults.set(data, forKey: Keys.latestSummary)
+    }
+
+    private static func loadLatestSummary(defaults: UserDefaults) -> WorkoutSummary? {
+        guard
+            let data = defaults.data(forKey: Keys.latestSummary),
+            let summary = try? JSONDecoder().decode(WorkoutSummary.self, from: data)
+        else {
+            return nil
+        }
+
+        return summary
     }
 
     private static func makeVersionText(bundle: Bundle) -> String {
@@ -162,6 +259,14 @@ final class PhoneCompanionViewModel: ObservableObject {
 
         return "\(version) (\(build))"
     }
+
+    private static let summaryDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 private extension ClosedRange where Bound == Int {
