@@ -372,7 +372,8 @@
   - `xcodebuild test -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,id=A54F1E80-0E34-4DD9-BA09-7E002AC5D0BB' -destination-timeout 60 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -only-testing:SquatCounterTests/SyncPayloadTests/testConfigPayloadRoundTripsThroughJSONEncoding` 已成功通过
   - 用户侧已按真实配对 `iPhone + Apple Watch` 路径完成 1 次 `6.7` 最小闭环验证，当前反馈为配置下发、摘要回传与首页承载均无异常
   - 完整 `xcodebuild test` / `test-without-building` 覆盖面仍未扩跑到更大范围，当前补证口径以“最小构建 + 1 条定向 XCTest + 1 次真机闭环”成立
-- 下一步由总控判断当前最小闭环是否进入 PR 准备；若要把 `WatchStateSnapshot` 变成用户可见能力，必须先补新契约
+- `PR #6` 已创建：`https://github.com/fuer121/Squat-Counter/pull/6`
+- 下一步由总控执行 `PR #6` 评审前检查；若要把 `WatchStateSnapshot` 变成用户可见能力，必须先补新契约
 
 ---
 
