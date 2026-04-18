@@ -50,8 +50,8 @@
 
 - 当前分支：`codex/task-009-sync-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不在本文件中固化单个 commit hash
-- 当前 PR：`PR #6` `https://github.com/fuer121/Squat-Counter/pull/6`（`6.7` 首批跨设备同步最小实现，当前等待评审前检查）
-- 当前下一步：由总控执行 `PR #6` 评审前检查，确认范围、验证口径与共享文档状态一致后进入正式评审
+- 当前 PR：`PR #6` `https://github.com/fuer121/Squat-Counter/pull/6`（`6.7` 首批跨设备同步最小实现，当前已进入正式评审）
+- 当前下一步：完成 `PR #6` 正式评审，并判断是否可合入 `main`
 
 ## 本阶段禁止扩展
 
