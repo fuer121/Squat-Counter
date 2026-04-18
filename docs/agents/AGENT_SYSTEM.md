@@ -40,6 +40,7 @@
 - 任务模板：`docs/agents/TASK_CONTRACT_TEMPLATE.md`
 - 交接模板：`docs/agents/HANDOFF_TEMPLATE.md`
 - 状态模板：`docs/agents/STATUS_UPDATE_TEMPLATE.md`
+- 平台手动操作 Runbook：`docs/release/MANUAL_PLATFORM_OPERATIONS.md`
 - 经验库：`docs/knowledge/VIBE_CODING_PLAYBOOK.md`
 - 经验草稿模板：`docs/knowledge/LESSON_CAPTURE_TEMPLATE.md`
 
@@ -51,6 +52,7 @@
 - 各角色按 Task Contract 执行任务，不以聊天替代交付
 - 共享状态统一回写到仓库内文档
 - 代码交付统一通过 PR 收口
+- 涉及真实设备、系统授权、平台账号、签名或 Health app 观察结果的操作，统一按 `docs/release/MANUAL_PLATFORM_OPERATIONS.md` 执行并回传
 
 ---
 
