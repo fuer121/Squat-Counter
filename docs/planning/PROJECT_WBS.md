@@ -326,22 +326,55 @@
 
 #### 模块状态
 
-- 状态：`未开始`
+- 状态：`进行中`
 - 阶段目标：建立稳定、可恢复的 iPhone 与 Watch 数据同步链路
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
-| 定义同步数据模型 | P0 | 未开始 | `SyncPayload` 结构 | 覆盖默认配置、训练结果、最近状态摘要 |
-| 实现 iPhone -> Watch 配置同步 | P0 | 未开始 | 同步逻辑 | Watch 可接收并应用默认参数 |
-| 实现 Watch -> iPhone 训练结果同步 | P0 | 未开始 | 回传逻辑 | 完成训练后 iPhone 可看到最新结果 |
+| 冻结 `TASK_009` 同步边界与实现准备 | P0 | 已完成 | 边界契约 | 已明确首批同步范围、可见承载方式、冲突与重试边界、验证口径与实现排除项 |
+| 补齐 `TASK_010` 首批实现契约 | P0 | 已完成 | 实现契约 | 已明确共享层、iPhone 侧、Watch 侧、测试文件范围，以及最小验证方式与排除项 |
+| 定义同步数据模型 | P0 | 已完成 | `SyncPayload` 结构 | 已覆盖默认配置、最近一次训练摘要与 `WatchStateSnapshot` 预留边界 |
+| 实现 iPhone -> Watch 配置同步 | P0 | 已完成 | 同步逻辑 | iPhone 保存默认参数后会下发到 Watch；Watch 仅在空闲 / 已完成态应用，训练中只影响下一次默认值 |
+| 实现 Watch -> iPhone 训练结果同步 | P0 | 已完成 | 回传逻辑 | 完成训练后 iPhone companion 首页最多可看到最近一次训练摘要，不扩展为历史页 |
 | 增加断连重试机制 | P1 | 未开始 | 同步容错逻辑 | 断连后可重试，不破坏训练主流程 |
-| 明确冲突规则 | P0 | 未开始 | 同步规则说明 | Watch 始终是训练真源 |
+| 明确冲突规则 | P0 | 已完成 | 同步规则说明 | Watch 始终是训练真源，且进行中会话不被新配置改写 |
 
 #### 当前待办
 
-- 基于 `TASK_007` 已冻结边界，优先定义 `WorkoutConfig -> SyncPayload.config` 的首个同步闭环
-- `WorkoutSummary` 与 `WatchStateSnapshot` 继续保留在 `6.7` 能力范围内，不反向拉高 `6.6` 页面范围
-- 继续冻结“Watch 是训练真源、iPhone 不拥有实时训练主状态”的冲突规则
+- 已完成 `TASK_009`，正式冻结 `6.7` 首批同步范围为：
+  - `iPhone -> Watch` 默认参数 `WorkoutConfig`
+  - `Watch -> iPhone` 最近一次训练摘要 `WorkoutSummary`
+- 已完成 `TASK_010`，正式补齐 `6.7` 首批实现契约，明确共享层、iPhone 侧、Watch 侧和测试文件范围，以及最小验证方式与排除项
+- 已明确 `WatchStateSnapshot` 虽保留在共享 payload 中，但不纳入 `1.0` 首批用户可见范围，不承接实时状态镜像
+- 已明确 `1.0` 的同步可见承载方式：
+  - Watch 侧消费最新默认参数，但不新增独立同步中心
+  - iPhone 侧若需要结果可见承载，只允许使用 companion 首页中的“最近一次训练摘要”单卡 / 单 section，不扩展为历史页或结果页
+- 已冻结冲突规则：
+  - Watch 仍是训练主状态与训练结果的唯一真源
+  - 默认参数冲突以 `SyncPayload.updatedAt` 最新值为准
+  - 正在进行中的 Watch 训练会话不被同步中的新配置改写，只影响下一次训练默认值
+  - 训练摘要只能由 Watch 生成，iPhone 侧至少按 `WorkoutSummary.id` 做幂等去重
+- 已冻结失败与重试边界：
+  - 不提供手动重试队列或同步中心
+  - 重试必须轻量且不阻塞 Watch 本地训练主流程
+  - 当前阶段不冻结具体 transport API、后台队列和系统级重试细节
+- 已完成当前轮最小实现：
+  - `WatchConnectivitySyncCoordinator` 已替换 `NoopSyncCoordinator`，统一承接 `SyncPayload` 编解码、`applicationContext` 下发与 `userInfo` 回传
+  - iPhone 保存默认参数后会发送 `SyncPayload.config`
+  - Watch 侧会持久化收到的默认参数，并在空闲 / 已完成态应用到下一次训练默认值；训练中收到的新配置只入队，不打断当前会话
+  - Watch 完成训练后会发送最近一次 `WorkoutSummary`
+  - iPhone companion 首页新增“最近一次训练摘要”单 section，并按 `WorkoutSummary.id` 做幂等去重与本地缓存
+- 已完成当前轮最小验证：
+  - `xcodebuild -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' build` 通过
+  - `xcodebuild build-for-testing -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'` 通过
+  - `xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/SquatCounter-czzsegtsdrailkgojlgummwegulo/Build/Products/Debug-iphonesimulator/SquatCounter.app` 与 `xcrun simctl launch booted com.fuer.SquatCounter` 通过，当前 app 可在 simulator 正常安装并启动
+  - 已新增 `SyncPayload` 编解码、训练中配置排队、完成训练后摘要发送等直接相关单测
+  - `xcodebuild test -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,id=A54F1E80-0E34-4DD9-BA09-7E002AC5D0BB' -destination-timeout 60 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -only-testing:SquatCounterTests/SyncPayloadTests/testConfigPayloadRoundTripsThroughJSONEncoding` 已成功通过
+  - 用户侧已按真实配对 `iPhone + Apple Watch` 路径完成 1 次 `6.7` 最小闭环验证，当前反馈为配置下发、摘要回传与首页承载均无异常
+  - 完整 `xcodebuild test` / `test-without-building` 覆盖面仍未扩跑到更大范围，当前补证口径以“最小构建 + 1 条定向 XCTest + 1 次真机闭环”成立
+- `PR #6` 已创建：`https://github.com/fuer121/Squat-Counter/pull/6`
+- 当前状态已推进到：`PR #6` 正式评审中
+- 下一步完成 `PR #6` 正式评审，并判断是否可合入 `main`；若要把 `WatchStateSnapshot` 变成用户可见能力，必须先补新契约
 
 ---
 

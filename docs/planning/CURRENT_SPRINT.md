@@ -21,8 +21,9 @@
 3. 模拟识别与识别状态机
 4. `TASK_007`：iPhone Companion 边界冻结与实现准备
 5. `TASK_008`：iPhone Companion 实现契约补齐
-6. `6.7`：iPhone 配置同步与训练结果回传
-7. HealthKit、隐私、发布基线补齐
+6. `TASK_009`：跨设备同步边界冻结与实现准备
+7. `6.7`：iPhone 配置同步与训练结果回传实现
+8. HealthKit、隐私、发布基线补齐
 
 ## 当前 owner 建议
 
@@ -38,17 +39,19 @@
 - `TASK_006`：`docs/tasks/TASK_006_SQUAT_DETECTION_IMPLEMENTATION.md`
 - `TASK_007`：`docs/tasks/TASK_007_IPHONE_COMPANION_BOUNDARY.md`
 - `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
+- `TASK_009`：`docs/tasks/TASK_009_CROSS_DEVICE_SYNC_BOUNDARY.md`
+- `TASK_010`：`docs/tasks/TASK_010_CROSS_DEVICE_SYNC_IMPLEMENTATION.md`
 - 当前直接 owner：`开发 Agent 1`
-- 当前线程判断：`main`
-- 当前判断理由：`PR #4` 已合入 `main`，`6.6` 首批实现已完成主线收口；当前不再停留在 `codex/task-007-iphone-boundary` 评审语境，也不直接进入 `6.7`
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`；当前已完成 iOS 最小构建与 `build-for-testing` 验证，完整 `xcodebuild test` 与定向 `test-without-building` 在当前环境执行阶段卡住的现象已作为残余风险记录，当前等待总控派发下一任务
+- 当前线程判断：`codex/task-009-sync-boundary`
+- 当前判断理由：`TASK_009` 与 `TASK_010` 已完成边界冻结与实现契约补齐，`6.7` 已进入最小闭环实现阶段；当前以 `WorkoutConfig` 下发、最近一次 `WorkoutSummary` 回传与 companion 首页最小承载为唯一目标
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐；当前 `6.7` 最小同步闭环已完成代码、文档、最小构建、1 条定向 XCTest 与真实配对设备闭环验证收口，并已创建独立增量 PR
 
 ## 当前交付状态
 
-- 当前分支：`main`
-- 当前提交状态：以主线当前 `HEAD` 为准，不在本文件中固化单个 commit hash
-- 当前 PR：`无`（`PR #4` 已合入 `main`，`6.6 iPhone Companion` 已完成主线收口）
-- 当前下一步：等待总控派发下一任务；若进入后续模块，必须先补齐对应 Task Contract 与共享文档状态
+- 当前分支：`codex/task-009-sync-boundary`
+- 当前提交状态：以当前任务分支 `HEAD` 为准，不在本文件中固化单个 commit hash
+- 当前 PR：`PR #6` `https://github.com/fuer121/Squat-Counter/pull/6`（`6.7` 首批跨设备同步最小实现，当前已进入正式评审）
+- 当前下一步：完成 `PR #6` 正式评审，并判断是否可合入 `main`
 
 ## 本阶段禁止扩展
 
