@@ -382,11 +382,12 @@
 
 #### 模块状态
 
-- 状态：`未开始`
-- 阶段目标：让训练运行、权限申请和系统数据能力符合平台要求
+- 状态：`进行中`
+- 阶段目标：先冻结 `1.0` 的 HealthKit 权限、拒权降级、`Workout Session` 生命周期和 `Health app` 写入口径，再进入最小实现
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
+| 冻结 `TASK_011`：HealthKit 与权限边界 | P0 | 已完成 | 边界契约 | 已明确权限范围、拒权降级、`Workout Session` 生命周期、`Health app` 写入口径与验证方式 |
 | 配置 `HealthKit capability` | P0 | 未开始 | target capability 配置 | 工程签名正确、能力开启成功 |
 | 明确权限使用文案 | P0 | 未开始 | usage description 文案 | 文案与真实用途一致 |
 | 实现授权申请流程 | P0 | 未开始 | 权限代码与提示 | 首次使用可正确申请，拒权后不崩溃 |
@@ -396,7 +397,17 @@
 
 #### 当前待办
 
-- 先确认是否在 `1.0` 写入 Health app
+- 已完成 `TASK_011`，正式冻结 `6.8` 首批边界：
+  - 仅承接 Watch 侧最小 `HealthKit` 权限，不在 `1.0` 首批向 iPhone 请求 HealthKit
+  - `1.0` 不读取心率、卡路里、体重等额外健康数据
+  - `Workout Session` 仅覆盖 Watch 端一次明确开始的训练主链路，不早于倒计时完成后的训练进入点
+  - 训练完成路径最多写入一条 workout 到 `Health app`；取消倒计时、中途结束、拒权路径不写入
+  - 拒权后 Watch 本地训练主流程仍可继续，不允许把权限拒绝变成训练硬阻塞
+- 当前工程现状已确认：
+  - Watch Extension 已链接 `HealthKit.framework`
+  - Watch Extension 已声明 `workout-processing` 后台模式
+  - 当前尚无 `HKHealthStore` / `HKWorkoutSession` / 权限申请 / `PrivacyInfo.xcprivacy` 实现
+- 下一步等待总控判断是否进入 `6.8` 实现任务；若进入实现，需同时收口 capability、权限文案、拒权降级、真机验证与发布检查
 
 ---
 
