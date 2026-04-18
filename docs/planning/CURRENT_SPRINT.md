@@ -41,17 +41,17 @@
 - `TASK_008`：`docs/tasks/TASK_008_IPHONE_COMPANION_IMPLEMENTATION.md`
 - `TASK_009`：`docs/tasks/TASK_009_CROSS_DEVICE_SYNC_BOUNDARY.md`
 - `TASK_010`：`docs/tasks/TASK_010_CROSS_DEVICE_SYNC_IMPLEMENTATION.md`
-- 当前直接 owner：`开发 Agent 1`
-- 当前线程判断：`codex/task-009-sync-boundary`
-- 当前判断理由：`TASK_009` 与 `TASK_010` 已完成边界冻结与实现契约补齐，`6.7` 已进入最小闭环实现阶段；当前以 `WorkoutConfig` 下发、最近一次 `WorkoutSummary` 回传与 companion 首页最小承载为唯一目标
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐；当前 `6.7` 最小同步闭环已完成代码、文档、最小构建、1 条定向 XCTest 与真实配对设备闭环验证收口，并已创建独立增量 PR
+- 当前直接 owner：`总控 Agent`
+- 当前线程判断：`main`
+- 当前判断理由：`PR #6` 已合入 `main`，`6.7` 首批跨设备同步最小实现已完成主线收口；当前不再处于实现或评审态，等待总控派发下一任务
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐；`PR #6` 已合入 `main`，当前 `6.7` 已完成主线收口
 
 ## 当前交付状态
 
-- 当前分支：`codex/task-009-sync-boundary`
+- 当前分支：`main`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不在本文件中固化单个 commit hash
-- 当前 PR：`PR #6` `https://github.com/fuer121/Squat-Counter/pull/6`（`6.7` 首批跨设备同步最小实现，当前已进入正式评审）
-- 当前下一步：完成 `PR #6` 正式评审，并判断是否可合入 `main`
+- 当前 PR：`无`（`PR #6` `https://github.com/fuer121/Squat-Counter/pull/6` 已合入 `main`）
+- 当前下一步：等待总控派发下一任务
 
 ## 本阶段禁止扩展
 
