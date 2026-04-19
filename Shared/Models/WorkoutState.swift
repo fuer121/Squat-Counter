@@ -10,6 +10,49 @@ enum WorkoutState: String, Codable, CaseIterable, Sendable {
     case completed
 }
 
+enum WorkoutHealthAuthorizationStatus: Equatable, Sendable {
+    case notDetermined
+    case sharingAuthorized
+    case sharingDenied
+    case unavailable
+}
+
+enum WorkoutHealthSessionStartResult: Equatable, Sendable {
+    case started
+    case skipped(WorkoutHealthAuthorizationStatus)
+    case failed
+}
+
+enum WorkoutHealthSaveResult: Equatable, Sendable {
+    case saved
+    case skipped(WorkoutHealthAuthorizationStatus)
+    case failed
+}
+
+protocol WorkoutHealthManaging {
+    func prepareForWorkout(at startDate: Date) async -> WorkoutHealthSessionStartResult
+    func pauseWorkout() async
+    func resumeWorkout() async
+    func finishWorkout(summary: WorkoutSummary, endDate: Date) async -> WorkoutHealthSaveResult
+    func discardWorkout() async
+}
+
+struct NoopWorkoutHealthManager: WorkoutHealthManaging {
+    func prepareForWorkout(at startDate: Date) async -> WorkoutHealthSessionStartResult {
+        .skipped(.unavailable)
+    }
+
+    func pauseWorkout() async {}
+
+    func resumeWorkout() async {}
+
+    func finishWorkout(summary: WorkoutSummary, endDate: Date) async -> WorkoutHealthSaveResult {
+        .skipped(.unavailable)
+    }
+
+    func discardWorkout() async {}
+}
+
 final class WorkoutSessionViewModel: ObservableObject {
     private static let defaultTempoCueInterval: TimeInterval = 2.0
 
@@ -17,10 +60,13 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published private(set) var progress: WorkoutProgress = .empty
     @Published private(set) var pauseContext: PauseContext?
     @Published private(set) var countdownRemainingSeconds: Int = 0
+    @Published private(set) var healthAuthorizationStatus: WorkoutHealthAuthorizationStatus = .notDetermined
+    @Published private(set) var healthStatusMessage: String?
     @Published var config: WorkoutConfig
 
     private let configStore: WorkoutConfigStoring
     private let syncCoordinator: any WatchConnectivitySyncing
+    private let healthManager: any WorkoutHealthManaging
     private let notificationCenter: NotificationCenter
     private let now: () -> Date
     private let timerManager: any TimerManaging
@@ -31,12 +77,14 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var lastConfigUpdatedAt: Date?
     private var pendingConfig: (config: WorkoutConfig, updatedAt: Date)?
     private var sessionStartedAt: Date?
+    private var hasPreparedHealthWorkout = false
     private var cancellables: Set<AnyCancellable> = []
 
     init(
         config: WorkoutConfig? = nil,
         configStore: WorkoutConfigStoring = UserDefaultsWorkoutConfigStore(),
         syncCoordinator: any WatchConnectivitySyncing = WatchConnectivitySyncCoordinator.shared,
+        healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager(),
         notificationCenter: NotificationCenter = .default,
         now: @escaping () -> Date = Date.init,
         timerManager: any TimerManaging = TimerManager(),
@@ -47,6 +95,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     ) {
         self.configStore = configStore
         self.syncCoordinator = syncCoordinator
+        self.healthManager = healthManager
         self.notificationCenter = notificationCenter
         self.now = now
         self.config = config ?? configStore.loadConfig()
@@ -64,7 +113,9 @@ final class WorkoutSessionViewModel: ObservableObject {
         progress = .empty
         pauseContext = nil
         countdownRemainingSeconds = config.countdownSeconds
-        sessionStartedAt = now()
+        sessionStartedAt = nil
+        hasPreparedHealthWorkout = false
+        healthStatusMessage = nil
         state = .countdown
         startTimer(.countdown(durationSeconds: config.countdownSeconds))
     }
@@ -101,6 +152,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         timerManager.pause()
         state = .paused
+
+        Task {
+            await healthManager.pauseWorkout()
+        }
     }
 
     func resumeWorkout() {
@@ -113,6 +168,10 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         timerManager.resume()
+
+        Task {
+            await healthManager.resumeWorkout()
+        }
     }
 
     func completeRest() {
@@ -124,6 +183,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     func confirmEndWorkout() {
         guard state == .training || state == .resting || state == .paused else { return }
+        discardHealthWorkout()
         returnToHome()
     }
 
@@ -140,6 +200,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         pauseContext = nil
         countdownRemainingSeconds = 0
         sessionStartedAt = nil
+        hasPreparedHealthWorkout = false
         state = .idle
         applyPendingConfigIfNeeded()
     }
@@ -206,7 +267,12 @@ final class WorkoutSessionViewModel: ObservableObject {
             progress.remainingRestSeconds = 0
             state = .completed
             hapticManager.playHighestPriority(among: [.workoutCompleted, .setCompleted, .repCompleted])
-            sendLatestWorkoutSummary()
+            let completedAt = now()
+            let summary = latestWorkoutSummary(completedAt: completedAt)
+            sendLatestWorkoutSummary(summary)
+            finishHealthWorkout(summary, completedAt: completedAt)
+            sessionStartedAt = nil
+            hasPreparedHealthWorkout = false
             applyPendingConfigIfNeeded()
             return
         }
@@ -267,6 +333,12 @@ final class WorkoutSessionViewModel: ObservableObject {
         countdownRemainingSeconds = 0
         progress.remainingRestSeconds = 0
         state = .training
+
+        if sessionStartedAt == nil {
+            sessionStartedAt = now()
+        }
+
+        prepareHealthWorkoutIfNeeded()
         startDetection()
 
         if config.tempoCueEnabled {
@@ -327,19 +399,96 @@ final class WorkoutSessionViewModel: ObservableObject {
         self.pendingConfig = nil
     }
 
-    private func sendLatestWorkoutSummary() {
-        let completedAt = now()
+    private func latestWorkoutSummary(completedAt: Date) -> WorkoutSummary {
         let startedAt = sessionStartedAt ?? completedAt
         let durationSeconds = max(Int(completedAt.timeIntervalSince(startedAt)), 0)
-        let summary = WorkoutSummary(
+        return WorkoutSummary(
             completedAt: completedAt,
             totalSets: progress.currentSet,
             totalReps: progress.totalCompletedReps,
             durationSeconds: durationSeconds
         )
+    }
 
+    private func sendLatestWorkoutSummary(_ summary: WorkoutSummary) {
+        let completedAt = summary.completedAt
         Task {
             try? await syncCoordinator.send(payload: .workoutSummary(summary, updatedAt: completedAt))
+        }
+    }
+
+    private func prepareHealthWorkoutIfNeeded() {
+        guard hasPreparedHealthWorkout == false, let startedAt = sessionStartedAt else {
+            return
+        }
+
+        hasPreparedHealthWorkout = true
+
+        Task { [weak self] in
+            guard let self else { return }
+
+            let result = await healthManager.prepareForWorkout(at: startedAt)
+
+            await MainActor.run {
+                self.handleHealthStartResult(result)
+            }
+        }
+    }
+
+    private func finishHealthWorkout(_ summary: WorkoutSummary, completedAt: Date) {
+        Task { [weak self] in
+            guard let self else { return }
+
+            let result = await healthManager.finishWorkout(summary: summary, endDate: completedAt)
+
+            await MainActor.run {
+                self.handleHealthSaveResult(result)
+            }
+        }
+    }
+
+    private func discardHealthWorkout() {
+        hasPreparedHealthWorkout = false
+        sessionStartedAt = nil
+
+        Task {
+            await healthManager.discardWorkout()
+        }
+    }
+
+    private func handleHealthStartResult(_ result: WorkoutHealthSessionStartResult) {
+        switch result {
+        case .started:
+            healthAuthorizationStatus = .sharingAuthorized
+            healthStatusMessage = nil
+        case .skipped(let status):
+            healthAuthorizationStatus = status
+            healthStatusMessage = healthMessage(for: status)
+        case .failed:
+            healthStatusMessage = "Health 训练会话未能启动，训练仍可继续。"
+        }
+    }
+
+    private func handleHealthSaveResult(_ result: WorkoutHealthSaveResult) {
+        switch result {
+        case .saved:
+            healthStatusMessage = "本次训练已写入 Health app。"
+        case .skipped(let status):
+            healthAuthorizationStatus = status
+            healthStatusMessage = healthMessage(for: status)
+        case .failed:
+            healthStatusMessage = "训练已完成，但未能写入 Health app。"
+        }
+    }
+
+    private func healthMessage(for status: WorkoutHealthAuthorizationStatus) -> String? {
+        switch status {
+        case .sharingDenied:
+            return "未授权 Health，训练仍可继续，但不会写入 Health app。"
+        case .unavailable:
+            return "当前设备不支持 Health 写入，训练仍可继续。"
+        case .notDetermined, .sharingAuthorized:
+            return nil
         }
     }
 }

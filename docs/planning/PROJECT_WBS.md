@@ -382,21 +382,35 @@
 
 #### 模块状态
 
-- 状态：`未开始`
-- 阶段目标：让训练运行、权限申请和系统数据能力符合平台要求
+- 状态：`进行中`
+- 阶段目标：先冻结 `1.0` 的 HealthKit 权限、拒权降级、`Workout Session` 生命周期和 `Health app` 写入口径，再进入最小实现
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
-| 配置 `HealthKit capability` | P0 | 未开始 | target capability 配置 | 工程签名正确、能力开启成功 |
-| 明确权限使用文案 | P0 | 未开始 | usage description 文案 | 文案与真实用途一致 |
-| 实现授权申请流程 | P0 | 未开始 | 权限代码与提示 | 首次使用可正确申请，拒权后不崩溃 |
-| 实现 `Workout Session` 生命周期 | P0 | 未开始 | 训练运行控制 | 训练进行中 App 可持续稳定工作 |
-| 明确拒权降级方案 | P0 | 未开始 | 降级处理说明 | 用户拒绝权限后仍有可预期行为 |
-| 评估并实现训练写入 Health app | P1 | 未开始 | workout 保存逻辑 | 若纳入 `1.0`，训练可正确写入 |
+| 冻结 `TASK_011`：HealthKit 与权限边界 | P0 | 已完成 | 边界契约 | 已明确权限范围、拒权降级、`Workout Session` 生命周期、`Health app` 写入口径与验证方式 |
+| 配置 `HealthKit capability` | P0 | 已完成 | target capability 配置 | 工程已补 entitlements 与最小 capability 接线，真实配对设备授权与写入验证已完成 |
+| 明确权限使用文案 | P0 | 已完成 | usage description 文案 | Watch Extension `Info.plist` 已补齐与 workout 写入一致的最小文案 |
+| 实现授权申请流程 | P0 | 已完成 | 权限代码与提示 | 已完成首次授权代码接线，并已完成真实配对设备首次授权验证 |
+| 实现 `Workout Session` 生命周期 | P0 | 已完成 | 训练运行控制 | 已接到现有训练状态机，并已完成完成路径手动闭环验证 |
+| 明确拒权降级方案 | P0 | 已完成 | 降级处理说明 | 已实现拒权后训练继续、仅跳过 `Health app` 写入 |
+| 评估并实现训练写入 Health app | P1 | 已完成 | workout 保存逻辑 | 已完成训练完成路径写入代码，并已完成真实 `Health app` 写入验证 |
 
 #### 当前待办
 
-- 先确认是否在 `1.0` 写入 Health app
+- 已完成 `TASK_011`，正式冻结 `6.8` 首批边界：
+  - 仅承接 Watch 侧最小 `HealthKit` 权限，不在 `1.0` 首批向 iPhone 请求 HealthKit
+  - `1.0` 不读取心率、卡路里、体重等额外健康数据
+  - `Workout Session` 仅覆盖 Watch 端一次明确开始的训练主链路，不早于倒计时完成后的训练进入点
+  - 训练完成路径最多写入一条 workout 到 `Health app`；取消倒计时、中途结束、拒权路径不写入
+  - 拒权后 Watch 本地训练主流程仍可继续，不允许把权限拒绝变成训练硬阻塞
+- 当前工程现状已确认：
+  - Watch Extension 已链接 `HealthKit.framework`
+  - Watch Extension 已声明 `workout-processing` 后台模式
+  - 已补 `HKHealthStore` / `HKWorkoutSession` 最小接线、Watch 侧权限申请、`PrivacyInfo.xcprivacy`、entitlements 与 workout 写入代码
+  - 已完成 `build` 与 `build-for-testing` 最小验证
+  - 已完成真实配对 `iPhone + Apple Watch` 上的首次授权、拒权降级与完成训练写入 `Health app` 手动验证
+  - 当前环境下完整 `XCTest` / `test-without-building` 在执行阶段仍可能卡住
+- `PR #7` 已创建；下一步为重新执行评审前检查，并根据检查结论决定是否进入正式评审
 
 ---
 

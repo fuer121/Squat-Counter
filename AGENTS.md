@@ -77,6 +77,7 @@
 - 决策基线：`docs/planning/DECISIONS.md`
 - 风险基线：`docs/planning/RISKS.md`
 - 发布基线：`docs/release/RELEASE_CHECKLIST.md`
+- 平台手动操作基线：`docs/release/MANUAL_PLATFORM_OPERATIONS.md`
 - 经验沉淀基线：`docs/knowledge/VIBE_CODING_PLAYBOOK.md`
 
 规则：
@@ -85,6 +86,7 @@
 - 若任务状态、风险状态、决策状态发生变化，必须先更新共享文档，再继续推进实现
 - agent 之间不依赖互相聊天，而依赖仓库内共享文档同步状态
 - 未进入共享文档的关键规则，视为未生效
+- 涉及真实设备、系统授权、Health app 写入、签名、平台账号或 GUI 观察的动作，默认以 `docs/release/MANUAL_PLATFORM_OPERATIONS.md` 为唯一手动执行与回传基线
 
 ---
 
