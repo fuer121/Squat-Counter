@@ -14,6 +14,12 @@
 - [x] `PrivacyInfo.xcprivacy` 已补齐
 - [ ] App Privacy 信息与实际行为一致
 
+### 6.9 当前确认
+
+- 已冻结 `TASK_013`：数据与隐私合规首批边界
+- 已确认当前数据口径：`UserDefaults` 训练配置、`WatchConnectivity` 最小同步、Watch 完成路径写入 `Health app`
+- App Privacy 问卷与提审后台动作仍需用户在 Apple 平台手动执行并回传
+
 ## 质量门禁
 
 - [ ] 核心状态机测试通过
