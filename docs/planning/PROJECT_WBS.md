@@ -425,9 +425,10 @@
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
 | 冻结 `TASK_013`：数据与隐私合规边界 | P0 | 已完成 | 边界契约 | 已明确首批数据收集、存储、同步、写入口径与手动平台动作 |
+| 补齐 `TASK_014`：数据与隐私合规实现契约 | P0 | 已完成 | 实现契约 | 已明确实现目标、可修改文件范围、最小验证方式与手动平台动作 |
 | 盘点全量采集数据 | P0 | 已完成 | 数据清单 | 已明确 `UserDefaults`、`WatchConnectivity`、`Health app` 写入的最小数据边界 |
 | 添加 `PrivacyInfo.xcprivacy` | P0 | 已完成 | manifest 文件 | 文件已落地，口径与当前实现一致 |
-| 完成 App Privacy 配置 | P0 | 未开始 | App Store Connect 问卷 | 与实际采集行为一致，且用户手动填报已回传 |
+| 完成 App Privacy 配置 | P0 | 未开始 | App Store Connect 问卷 | 与实际采集行为一致，并在用户手动填报后回传结果 |
 | 准备隐私政策 URL | P0 | 未开始 | 可访问网页 | 可公开访问，内容完整 |
 | 准备支持页面 URL | P0 | 未开始 | 可访问网页 | 提供反馈和支持入口 |
 | 盘点第三方 SDK 隐私要求 | P1 | 未开始 | SDK 合规清单 | 所有第三方依赖均已核查 |
@@ -439,7 +440,11 @@
   - 当前仅同步 `WorkoutConfig` 与最近一次 `WorkoutSummary`（`WatchConnectivity`）
   - 当前仅在 Watch 完成训练路径写入一条 workout 到 `Health app`
   - `PrivacyInfo.xcprivacy` 与 HealthKit 使用口径已与当前实现对齐
-- 下一步等待总控执行 `6.9` 实现准入 checkpoint，并决定是否进入实现阶段
+- 已形成 `TASK_014`，补齐 `6.9` 实现契约：
+  - 已明确实现目标、代码/配置/隐私清单/测试/文档文件范围
+  - 已明确 `PrivacyInfo.xcprivacy` / App Privacy / HealthKit / WatchConnectivity / UserDefaults 实现期边界
+  - 已明确最小验证方式与必须由用户手动执行的平台动作
+- 下一步等待总控派发 `6.9` 实现写任务
 
 ---
 
