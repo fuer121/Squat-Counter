@@ -8,10 +8,10 @@
 
 ## 权限与隐私
 
-- [ ] HealthKit capability 已配置
-- [ ] 权限文案与真实用途一致
-- [ ] 拒权降级策略已确认
-- [ ] `PrivacyInfo.xcprivacy` 已补齐
+- [x] HealthKit capability 已配置
+- [x] 权限文案与真实用途一致
+- [x] 拒权降级策略已确认
+- [x] `PrivacyInfo.xcprivacy` 已补齐
 - [ ] App Privacy 信息与实际行为一致
 
 ## 质量门禁
@@ -21,6 +21,13 @@
 - [ ] 识别逻辑测试通过
 - [ ] 真机验证矩阵已执行
 - [ ] 已知风险已记录
+
+### 6.8 当前确认
+
+- 已完成真实配对 `iPhone + Apple Watch` 上的 `HealthKit` 首次授权验证
+- 已完成真实配对设备上的拒权降级验证，确认训练主流程不被阻塞
+- 已完成真实配对设备上的完成训练写入 `Health app` 验证
+- `build` 与 `build-for-testing` 已通过；完整 `XCTest` 执行阶段在当前环境仍可能卡住
 
 ## 部署检查
 

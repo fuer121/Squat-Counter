@@ -18,8 +18,9 @@
 
 ## 权限与系统能力
 
-- [ ] HealthKit 首次授权
-- [ ] HealthKit 拒权降级
+- [x] HealthKit 首次授权
+- [x] HealthKit 拒权降级
+- [x] 完成训练写入 Health app
 - [ ] 训练进行中稳定性
 
 ## 同步
