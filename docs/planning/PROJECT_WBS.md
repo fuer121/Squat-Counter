@@ -410,7 +410,8 @@
   - 已完成 `build` 与 `build-for-testing` 最小验证
   - 已完成真实配对 `iPhone + Apple Watch` 上的首次授权、拒权降级与完成训练写入 `Health app` 手动验证
   - 当前环境下完整 `XCTest` / `test-without-building` 在执行阶段仍可能卡住
-- `PR #7` 已创建；下一步为重新执行评审前检查，并根据检查结论决定是否进入正式评审
+- `PR #7` 已合入 `main`，`6.8` 最小实现已完成主线收口
+- 下一步：等待总控派发下一任务
 
 ---
 
