@@ -17,8 +17,10 @@
 ### 6.9 当前确认
 
 - 已冻结 `TASK_013`：数据与隐私合规首批边界
-- 已补齐 `TASK_014`：数据与隐私合规实现契约（尚未进入 `6.9` 功能实现代码）
+- 已补齐 `TASK_014`：数据与隐私合规实现契约
 - 已确认当前数据口径：`UserDefaults` 训练配置、`WatchConnectivity` 最小同步、Watch 完成路径写入 `Health app`
+- 已按当前真实行为收口 `PrivacyInfo.xcprivacy`：`HealthFitness` 数据用途 + `UserDefaults` 必需 API 访问声明（`CA92.1`）
+- 与本轮实现直接相关的最小验证已通过：`plutil -lint`、`build-for-testing`、`WorkoutConfigStoreTests` 定向测试
 - App Privacy 问卷与提审后台动作仍需用户在 Apple 平台手动执行并回传
 
 ## 质量门禁

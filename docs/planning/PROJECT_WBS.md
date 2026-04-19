@@ -426,8 +426,9 @@
 | --- | --- | --- | --- | --- |
 | 冻结 `TASK_013`：数据与隐私合规边界 | P0 | 已完成 | 边界契约 | 已明确首批数据收集、存储、同步、写入口径与手动平台动作 |
 | 补齐 `TASK_014`：数据与隐私合规实现契约 | P0 | 已完成 | 实现契约 | 已明确实现目标、可修改文件范围、最小验证方式与手动平台动作 |
+| 执行 `6.9` 最小实现收口 | P0 | 已完成 | 最小实现回写 | 已完成 `PrivacyInfo.xcprivacy` 与 `UserDefaults` 真实行为对齐，并完成发布检查与状态文档回写 |
 | 盘点全量采集数据 | P0 | 已完成 | 数据清单 | 已明确 `UserDefaults`、`WatchConnectivity`、`Health app` 写入的最小数据边界 |
-| 添加 `PrivacyInfo.xcprivacy` | P0 | 已完成 | manifest 文件 | 文件已落地，口径与当前实现一致 |
+| 添加 `PrivacyInfo.xcprivacy` | P0 | 已完成 | manifest 文件 | 文件已落地，并已补齐 `UserDefaults` 必需 API 访问声明，口径与当前实现一致 |
 | 完成 App Privacy 配置 | P0 | 未开始 | App Store Connect 问卷 | 与实际采集行为一致，并在用户手动填报后回传结果 |
 | 准备隐私政策 URL | P0 | 未开始 | 可访问网页 | 可公开访问，内容完整 |
 | 准备支持页面 URL | P0 | 未开始 | 可访问网页 | 提供反馈和支持入口 |
@@ -444,7 +445,13 @@
   - 已明确实现目标、代码/配置/隐私清单/测试/文档文件范围
   - 已明确 `PrivacyInfo.xcprivacy` / App Privacy / HealthKit / WatchConnectivity / UserDefaults 实现期边界
   - 已明确最小验证方式与必须由用户手动执行的平台动作
-- 下一步等待总控派发 `6.9` 实现写任务
+- 已完成 `6.9` 最小实现收口：
+  - `PrivacyInfo.xcprivacy` 已补齐 `UserDefaults` 必需 API 访问声明（`CA92.1`）
+  - 已完成与本轮实现直接相关的最小验证与发布检查回写：
+    - `plutil -lint SquatCounterWatchExtension/Support/PrivacyInfo.xcprivacy` 通过
+    - `xcodebuild build-for-testing -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'` 通过
+    - `xcodebuild test -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' -only-testing:SquatCounterTests/WorkoutConfigStoreTests/testStorePersistsConfigAcrossStoreInstances` 通过
+- 下一步等待总控执行 checkpoint，并由用户完成 App Privacy 平台填报与回传
 
 ---
 
