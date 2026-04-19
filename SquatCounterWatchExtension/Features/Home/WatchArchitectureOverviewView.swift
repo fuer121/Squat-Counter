@@ -4,9 +4,10 @@ struct WatchArchitectureOverviewView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
     @State private var isEndWorkoutAlertPresented = false
 
-    init() {
+    init(healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager()) {
         _viewModel = StateObject(
             wrappedValue: WorkoutSessionViewModel(
+                healthManager: healthManager,
                 hapticManager: HapticManager(performer: WatchHapticPerformer())
             )
         )
@@ -58,6 +59,8 @@ struct WatchArchitectureOverviewView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
+                healthStatusView
+
                 Stepper(value: repsBinding, in: WorkoutConfig.repsRange) {
                     settingLabel(title: "每组次数", value: "\(viewModel.config.repsPerSet)")
                 }
@@ -92,6 +95,8 @@ struct WatchArchitectureOverviewView: View {
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
+
+            healthStatusView
 
             Button("取消", action: viewModel.cancelCountdown)
         }
@@ -145,6 +150,8 @@ struct WatchArchitectureOverviewView: View {
                     }
                 }
             }
+
+            healthStatusView
         }
         .padding()
     }
@@ -178,6 +185,8 @@ struct WatchArchitectureOverviewView: View {
                     isEndWorkoutAlertPresented = true
                 }
             }
+
+            healthStatusView
         }
         .padding()
     }
@@ -195,6 +204,8 @@ struct WatchArchitectureOverviewView: View {
 
             Button("再来一次", action: viewModel.restartWorkout)
                 .buttonStyle(.borderedProminent)
+
+            healthStatusView
 
             Button("返回首页", action: viewModel.returnToHome)
         }
@@ -255,6 +266,16 @@ struct WatchArchitectureOverviewView: View {
             viewModel.resumeWorkout()
         default:
             break
+        }
+    }
+
+    @ViewBuilder
+    private var healthStatusView: some View {
+        if let message = viewModel.healthStatusMessage {
+            Text(message)
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
         }
     }
 

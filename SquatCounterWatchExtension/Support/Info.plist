@@ -20,6 +20,10 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSHealthShareUsageDescription</key>
+    <string>用于在 Apple Watch 上记录深蹲训练并在完成后写入 Health app。</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>用于在训练完成后将本次深蹲 workout 写入 Health app。</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionAttributes</key>

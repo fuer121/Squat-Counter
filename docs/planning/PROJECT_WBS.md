@@ -388,12 +388,12 @@
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
 | 冻结 `TASK_011`：HealthKit 与权限边界 | P0 | 已完成 | 边界契约 | 已明确权限范围、拒权降级、`Workout Session` 生命周期、`Health app` 写入口径与验证方式 |
-| 配置 `HealthKit capability` | P0 | 未开始 | target capability 配置 | 工程签名正确、能力开启成功 |
-| 明确权限使用文案 | P0 | 未开始 | usage description 文案 | 文案与真实用途一致 |
-| 实现授权申请流程 | P0 | 未开始 | 权限代码与提示 | 首次使用可正确申请，拒权后不崩溃 |
-| 实现 `Workout Session` 生命周期 | P0 | 未开始 | 训练运行控制 | 训练进行中 App 可持续稳定工作 |
-| 明确拒权降级方案 | P0 | 未开始 | 降级处理说明 | 用户拒绝权限后仍有可预期行为 |
-| 评估并实现训练写入 Health app | P1 | 未开始 | workout 保存逻辑 | 若纳入 `1.0`，训练可正确写入 |
+| 配置 `HealthKit capability` | P0 | 进行中 | target capability 配置 | 工程已补 entitlements 与最小 capability 接线；真机签名与权限补证待完成 |
+| 明确权限使用文案 | P0 | 已完成 | usage description 文案 | Watch Extension `Info.plist` 已补齐与 workout 写入一致的最小文案 |
+| 实现授权申请流程 | P0 | 进行中 | 权限代码与提示 | 已完成首次授权代码接线；真实设备授权结果待手动验证 |
+| 实现 `Workout Session` 生命周期 | P0 | 进行中 | 训练运行控制 | 已接到现有训练状态机；真实设备稳定性仍待补证 |
+| 明确拒权降级方案 | P0 | 已完成 | 降级处理说明 | 已实现拒权后训练继续、仅跳过 `Health app` 写入 |
+| 评估并实现训练写入 Health app | P1 | 进行中 | workout 保存逻辑 | 已完成训练完成路径写入代码；真实 `Health app` 写入结果待手动验证 |
 
 #### 当前待办
 
@@ -406,8 +406,9 @@
 - 当前工程现状已确认：
   - Watch Extension 已链接 `HealthKit.framework`
   - Watch Extension 已声明 `workout-processing` 后台模式
-  - 当前尚无 `HKHealthStore` / `HKWorkoutSession` / 权限申请 / `PrivacyInfo.xcprivacy` 实现
-- 下一步等待总控判断是否进入 `6.8` 实现任务；若进入实现，需同时收口 capability、权限文案、拒权降级、真机验证与发布检查
+  - 已补 `HKHealthStore` / `HKWorkoutSession` 最小接线、Watch 侧权限申请、`PrivacyInfo.xcprivacy`、entitlements 与 workout 写入代码
+  - 已完成 `build` 与 `build-for-testing` 最小验证；完整 `XCTest` / `test-without-building` 在当前环境执行阶段仍可能卡住
+- 下一步优先补齐真实配对设备上的首次授权、拒权降级与写入 `Health app` 手动验证，再由总控判断是否进入 `6.8` PR 准备
 
 ---
 

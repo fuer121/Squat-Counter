@@ -84,6 +84,7 @@ targets:
         PRODUCT_NAME: SquatCounterWatchExtension
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: SquatCounterWatchExtension/Support/Info.plist
+        CODE_SIGN_ENTITLEMENTS: SquatCounterWatchExtension/Support/SquatCounterWatchExtension.entitlements
     dependencies:
       - sdk: HealthKit.framework
       - sdk: WatchConnectivity.framework

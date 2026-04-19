@@ -14,6 +14,7 @@
 		18F25643951B98152398E56D /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614582D7AA258E2D2B057BBB /* HapticManager.swift */; };
 		1BFFF1F3829B730D79FBED96 /* WatchArchitectureOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C3BC1B2B6B71839D56C908 /* WatchArchitectureOverviewView.swift */; };
 		1DC884BC090D165E4E207B76 /* PauseContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD6925F905B7FC707F1E9532 /* PauseContext.swift */; };
+		351C0A5DEFD45F2B021DD4AC /* WatchWorkoutHealthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127D3187F95AB347D20B1FCD /* WatchWorkoutHealthManager.swift */; };
 		37B885204AA97EB39A7F4BFE /* SyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19AA8191B81E5490080A5565 /* SyncPayload.swift */; };
 		38AF5C9E047C22AFB9A73390 /* WorkoutConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7D92D83C0FC8D294943FCF /* WorkoutConfigTests.swift */; };
 		398948D05404E9269898460D /* TrainingControlEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6697EFB233C63455B57FF357 /* TrainingControlEvent.swift */; };
@@ -34,6 +35,7 @@
 		8984AE0D47C521A10E42AABF /* SquatCounterWatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 75D4DA651C3DA9717DD772B2 /* SquatCounterWatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8C4FAC4BB4044D5373DB92CE /* WorkoutProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61EE363D264541B0301F2C7 /* WorkoutProgress.swift */; };
 		9068937A1814A22DCCA1689C /* SquatDetectionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94835804B287FCDAB6C88A9 /* SquatDetectionEvent.swift */; };
+		96B26FFEDDD4BF05A88AFC53 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B7411382AFA183C08D040744 /* PrivacyInfo.xcprivacy */; };
 		97DD0DB7BF88673F8273FC65 /* PhoneCompanionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C60E7A29C9A2A0550B28B6C /* PhoneCompanionViewModel.swift */; };
 		997C79C7876CF2EBA5B84129 /* WorkoutProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61EE363D264541B0301F2C7 /* WorkoutProgress.swift */; };
 		9EF217DCE216B19F228AE9E4 /* SquatDetectionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94835804B287FCDAB6C88A9 /* SquatDetectionEvent.swift */; };
@@ -108,6 +110,7 @@
 
 /* Begin PBXFileReference section */
 		0A9C17702748394DF3330838 /* WatchHapticPerformer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticPerformer.swift; sourceTree = "<group>"; };
+		127D3187F95AB347D20B1FCD /* WatchWorkoutHealthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutHealthManager.swift; sourceTree = "<group>"; };
 		19AA8191B81E5490080A5565 /* SyncPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPayload.swift; sourceTree = "<group>"; };
 		1C60E7A29C9A2A0550B28B6C /* PhoneCompanionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCompanionViewModel.swift; sourceTree = "<group>"; };
 		1D53F17629DFC1941E39D5A2 /* SquatCounterWatchExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SquatCounterWatchExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -129,11 +132,13 @@
 		AA7AE6A05026EF62DBA8F3E8 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		ACE6C7005503B74F33EC6A05 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
 		ADDEA763CC183B596D72A1FA /* WorkoutConfigStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutConfigStoring.swift; sourceTree = "<group>"; };
+		B7411382AFA183C08D040744 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		C61EE363D264541B0301F2C7 /* WorkoutProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutProgress.swift; sourceTree = "<group>"; };
 		CD6925F905B7FC707F1E9532 /* PauseContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PauseContext.swift; sourceTree = "<group>"; };
 		D89CDB60FB2F4F5A1E57075A /* WorkoutConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutConfig.swift; sourceTree = "<group>"; };
 		D9C3BC1B2B6B71839D56C908 /* WatchArchitectureOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchArchitectureOverviewView.swift; sourceTree = "<group>"; };
 		E08E5379F452AD23708457D5 /* PhoneCompanionHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCompanionHomeView.swift; sourceTree = "<group>"; };
+		E150083FD09B4BBD6F23BD74 /* SquatCounterWatchExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SquatCounterWatchExtension.entitlements; sourceTree = "<group>"; };
 		F1178F7D1002B33D408D9CE7 /* WorkoutState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutState.swift; sourceTree = "<group>"; };
 		F30A32732FC92D97C1F42E93 /* TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerManager.swift; sourceTree = "<group>"; };
 		F94835804B287FCDAB6C88A9 /* SquatDetectionEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquatDetectionEvent.swift; sourceTree = "<group>"; };
@@ -216,6 +221,8 @@
 			isa = PBXGroup;
 			children = (
 				60EBA88B77DCB462620A7E93 /* Info.plist */,
+				B7411382AFA183C08D040744 /* PrivacyInfo.xcprivacy */,
+				E150083FD09B4BBD6F23BD74 /* SquatCounterWatchExtension.entitlements */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -233,6 +240,7 @@
 			isa = PBXGroup;
 			children = (
 				2CE7C5A7F9DAA14AF7A81340 /* SquatCounterWatchExtensionApp.swift */,
+				127D3187F95AB347D20B1FCD /* WatchWorkoutHealthManager.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -412,6 +420,7 @@
 			buildConfigurationList = 8F11E93FD1289C7E4FDA182E /* Build configuration list for PBXNativeTarget "SquatCounterWatchExtension" */;
 			buildPhases = (
 				95D102ACE6B6F7F754B848F4 /* Sources */,
+				1171AEE9A3AEA9911C06B0CB /* Resources */,
 				29D92C68E6E1A8010FB57FD4 /* Frameworks */,
 			);
 			buildRules = (
@@ -475,6 +484,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1171AEE9A3AEA9911C06B0CB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				96B26FFEDDD4BF05A88AFC53 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		76E39B63036E0C353B003606 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -523,6 +540,7 @@
 				1BFFF1F3829B730D79FBED96 /* WatchArchitectureOverviewView.swift in Sources */,
 				B7149F8AACB9C2C092D5ADD6 /* WatchConnectivitySyncing.swift in Sources */,
 				D34B92C15CC4753BD4DF3806 /* WatchHapticPerformer.swift in Sources */,
+				351C0A5DEFD45F2B021DD4AC /* WatchWorkoutHealthManager.swift in Sources */,
 				F4951C6BF42213C9C838C344 /* WorkoutConfig.swift in Sources */,
 				03821A31B283754B85447708 /* WorkoutConfigStoring.swift in Sources */,
 				B2B930C8E4E970AC2FCE6573 /* WorkoutProgress.swift in Sources */,
@@ -576,6 +594,7 @@
 			baseConfigurationReference = 7B70CB0AAB2C54161F5E8972 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_COMPLICATION_NAME = Complication;
+				CODE_SIGN_ENTITLEMENTS = SquatCounterWatchExtension/Support/SquatCounterWatchExtension.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SquatCounterWatchExtension/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -859,6 +878,7 @@
 			baseConfigurationReference = 460466B6E7BCD297CC0632DF /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_COMPLICATION_NAME = Complication;
+				CODE_SIGN_ENTITLEMENTS = SquatCounterWatchExtension/Support/SquatCounterWatchExtension.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SquatCounterWatchExtension/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -977,6 +997,7 @@
 			baseConfigurationReference = ACE6C7005503B74F33EC6A05 /* Beta.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_COMPLICATION_NAME = Complication;
+				CODE_SIGN_ENTITLEMENTS = SquatCounterWatchExtension/Support/SquatCounterWatchExtension.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SquatCounterWatchExtension/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

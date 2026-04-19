@@ -8,7 +8,7 @@
 
 ### 中风险
 
-- `6.8` 当前仅完成 `HealthKit.framework` 与 `workout-processing` 的工程预留，尚未落地 capability、权限文案、拒权降级、`Workout Session` 生命周期和 `Health app` 写入代码；若实现期越界到 iPhone 侧授权、额外健康数据读写，或把拒权变成训练阻塞，会直接影响提审与主流程稳定性
+- `6.8` 已完成 Watch 侧最小 `HealthKit capability`、权限文案、拒权非阻塞降级、`Workout Session` 生命周期接线和完成路径写入 `Health app` 的代码落地，并已通过最小 `build` / `build-for-testing`；但真实配对设备上的首次授权、拒权降级和写入 `Health app` 仍待用户手动补证，且当前环境下完整 `XCTest` / `test-without-building` 在执行阶段仍可能卡住
 - `6.7` 最小同步闭环已完成代码落地，并已补到 1 次真实配对设备闭环验证；但断连恢复、多轮往返同步与更大范围真机回归仍未覆盖，当前不能把跨设备链路视为“已稳定”
 - `TASK_008` 已冻结 `6.6` 的实现文件范围与本地持久化边界；若后续实现阶段绕过 `PhoneCompanionViewModel` / `WorkoutConfigStoring` 直接在页面层操作存储或同步抽象，将导致 `6.6` 与 `6.7` 职责再次串扰
 - `TASK_009` 已冻结 `6.7` 首批同步范围与可见承载方式，当前也已完成 `WatchConnectivitySyncing` 最小实现；但轻量重试仍停留在边界约束层，尚未补到更强的 transport 级容错与恢复验证

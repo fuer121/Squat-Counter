@@ -490,10 +490,64 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(syncCoordinator.sentPayloads.first?.summary?.durationSeconds, 42)
     }
 
+    func testHealthManagerFollowsWorkoutLifecycleAndSavesOnCompletion() {
+        let scheduler = TestTimerScheduler()
+        let healthManager = WorkoutHealthManagerSpy()
+        let viewModel = makeTrainingViewModel(
+            config: WorkoutConfig(repsPerSet: 5, totalSets: 1, restSeconds: 30),
+            healthManager: healthManager,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            scheduler: scheduler
+        )
+
+        drainMainRunLoop()
+        XCTAssertEqual(healthManager.startedWorkoutDates.count, 1)
+
+        viewModel.pauseWorkout()
+        viewModel.resumeWorkout()
+        drainMainRunLoop()
+
+        completeCurrentSet(on: viewModel, repsPerSet: 5)
+        drainMainRunLoop()
+
+        XCTAssertEqual(viewModel.state, .completed)
+        XCTAssertEqual(healthManager.pauseCount, 1)
+        XCTAssertEqual(healthManager.resumeCount, 1)
+        XCTAssertEqual(healthManager.finishedSummaries.count, 1)
+        XCTAssertEqual(healthManager.finishedSummaries.first?.totalReps, 5)
+        XCTAssertEqual(viewModel.healthStatusMessage, "本次训练已写入 Health app。")
+    }
+
+    func testHealthAuthorizationDeniedDoesNotBlockTrainingFlow() {
+        let scheduler = TestTimerScheduler()
+        let healthManager = WorkoutHealthManagerSpy(startResult: .skipped(.sharingDenied))
+        let viewModel = makeTrainingViewModel(
+            config: WorkoutConfig(repsPerSet: 5, totalSets: 1, restSeconds: 30),
+            healthManager: healthManager,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            scheduler: scheduler
+        )
+
+        drainMainRunLoop()
+
+        XCTAssertEqual(viewModel.state, .training)
+        XCTAssertEqual(viewModel.healthAuthorizationStatus, .sharingDenied)
+        XCTAssertEqual(viewModel.healthStatusMessage, "未授权 Health，训练仍可继续，但不会写入 Health app。")
+
+        completeCurrentSet(on: viewModel, repsPerSet: 5)
+        drainMainRunLoop()
+
+        XCTAssertEqual(viewModel.state, .completed)
+        XCTAssertTrue(healthManager.finishedSummaries.isEmpty)
+    }
+
     private func makeTrainingViewModel(
         config: WorkoutConfig = WorkoutConfig(),
         configStore: WorkoutConfigStoring = UserDefaultsWorkoutConfigStore(defaults: UserDefaults(suiteName: UUID().uuidString)!),
         syncCoordinator: any WatchConnectivitySyncing = NoopSyncCoordinator(),
+        healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager(),
         notificationCenter: NotificationCenter = .default,
         now: @escaping () -> Date = Date.init,
         timerManager: any TimerManaging,
@@ -505,6 +559,7 @@ final class WorkoutSessionViewModelTests: XCTestCase {
             config: config,
             configStore: configStore,
             syncCoordinator: syncCoordinator,
+            healthManager: healthManager,
             notificationCenter: notificationCenter,
             now: now,
             timerManager: timerManager,
@@ -633,6 +688,53 @@ final class SquatDetectionManagerTests: XCTestCase {
         XCTAssertEqual(thresholds.standingStabilityDuration, 0.0)
         XCTAssertEqual(thresholds.cooldownDuration, 0.0)
         XCTAssertEqual(thresholds.maximumWristRaiseMagnitude, 1.0)
+    }
+}
+
+private final class WorkoutHealthManagerSpy: WorkoutHealthManaging {
+    private let startResult: WorkoutHealthSessionStartResult
+    private let finishResult: WorkoutHealthSaveResult
+
+    private(set) var startedWorkoutDates: [Date] = []
+    private(set) var finishedSummaries: [WorkoutSummary] = []
+    private(set) var finishDates: [Date] = []
+    private(set) var pauseCount = 0
+    private(set) var resumeCount = 0
+    private(set) var discardCount = 0
+
+    init(
+        startResult: WorkoutHealthSessionStartResult = .started,
+        finishResult: WorkoutHealthSaveResult = .saved
+    ) {
+        self.startResult = startResult
+        self.finishResult = finishResult
+    }
+
+    func prepareForWorkout(at startDate: Date) async -> WorkoutHealthSessionStartResult {
+        startedWorkoutDates.append(startDate)
+        return startResult
+    }
+
+    func pauseWorkout() async {
+        pauseCount += 1
+    }
+
+    func resumeWorkout() async {
+        resumeCount += 1
+    }
+
+    func finishWorkout(summary: WorkoutSummary, endDate: Date) async -> WorkoutHealthSaveResult {
+        guard case .started = startResult else {
+            return finishResult
+        }
+
+        finishedSummaries.append(summary)
+        finishDates.append(endDate)
+        return finishResult
+    }
+
+    func discardWorkout() async {
+        discardCount += 1
     }
 }
 
