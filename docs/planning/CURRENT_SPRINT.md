@@ -51,14 +51,14 @@
 - 当前直接 owner：`开发 Agent 2`
 - 当前线程判断：`codex/task-011-healthkit-boundary`
 - 当前判断理由：`PR #6` 与 `PR #7` 已合入 `main`，`6.7` 与 `6.8` 已完成主线收口；`TASK_013` 已完成 `6.9` 边界冻结，`TASK_014` 已补齐实现契约；当前已完成 `6.9` 最小实现收口（`PrivacyInfo.xcprivacy` 与 `UserDefaults` 真实行为对齐、发布检查口径回写），等待总控 checkpoint
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐并随 `PR #6` 合入 `main`，`TASK_011` 已完成 `6.8` 边界冻结与实现准备口径，`TASK_012` 已完成 `6.8` 首批实现契约补齐，`6.8` 最小 `HealthKit` / 权限实现已完成并随 `PR #7` 合入 `main`，`TASK_013` 已完成 `6.9` 数据与隐私合规边界冻结 / 实现准备，`TASK_014` 已完成 `6.9` 实现契约补齐并完成最小实现收口（`plutil -lint`、`build-for-testing`、`WorkoutConfigStoreTests` 定向测试通过）
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐并随 `PR #6` 合入 `main`，`TASK_011` 已完成 `6.8` 边界冻结与实现准备口径，`TASK_012` 已完成 `6.8` 首批实现契约补齐，`6.8` 最小 `HealthKit` / 权限实现已完成并随 `PR #7` 合入 `main`，`TASK_013` 已完成 `6.9` 数据与隐私合规边界冻结 / 实现准备，`TASK_014` 已完成 `6.9` 实现契约补齐并完成最小实现收口（`plutil -lint`、`build-for-testing`、`WorkoutConfigStoreTests` 定向测试通过），并已完成免费 `Apple Personal Team` 最小手动回传（`2026-04-19`：本地安装运行通过、完成训练写入通过、倒计时取消不写入通过）
 
 ## 当前交付状态
 
 - 当前分支：`codex/task-011-healthkit-boundary`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不在本文件中固化单个 commit hash
 - 当前 PR：`无`（当前处于 `6.9` 最小实现收口后 checkpoint 阶段，尚未创建 PR）
-- 当前下一步：等待总控执行 `6.9` 实现收口 checkpoint，并由用户执行后续 Apple 平台手动动作
+- 当前下一步：等待总控基于 `2026-04-19` 用户手动回传执行 `6.9` 收口 checkpoint，判定是否进入下一阶段
 
 ## 本阶段禁止扩展
 

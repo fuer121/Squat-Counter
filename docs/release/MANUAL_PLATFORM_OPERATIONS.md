@@ -81,6 +81,33 @@ Agent 不能可靠代做这类动作，原因包括：
 
 ---
 
+## 6.9 免费 Apple 个人开发者最小手动清单（Personal Team）
+
+适用前提：
+
+- 当前账号为免费 `Apple Personal Team`
+- 当前目标是 `6.9` checkpoint，不是提审/分发
+
+本轮不要求执行的平台动作：
+
+- `App Store Connect` 的 `App Privacy` 后台问卷
+- `TestFlight` 上传与分发
+- 提审材料上传、审核问答与分发型签名/发布动作
+
+本轮必须手动完成的最小动作：
+
+1. 本地 Xcode 安装并运行到真实配对 `iPhone + Apple Watch`
+2. 完成训练后确认 `Health app` 新增 workout
+3. 倒计时取消后确认 `Health app` 未新增 workout
+
+最小回传判定规则：
+
+- 若“结果（通过/失败）”与“观察到的现象”冲突，以原始观察为准
+- 出现冲突时，在 checkpoint 里标注“字段误填，按原始观察归一”
+- 倒计时取消场景建议同时回传取消时刻与 `Health app` 记录时刻，避免与历史记录混淆
+
+---
+
 ## 6.8 手动验证前提
 
 执行 `6.8 HealthKit 与权限` 相关手动操作前，用户需先确认：
