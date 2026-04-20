@@ -419,8 +419,8 @@
 
 #### 模块状态
 
-- 状态：`进行中`
-- 阶段目标：先冻结 `1.0` 首批数据与隐私合规边界，再进入最小实现与平台填报执行
+- 状态：`已完成`
+- 阶段目标：`PR #8` 已合入 `main`，`6.9` 已完成当前免费 `Apple Personal Team` 路径下的主线收口
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
@@ -451,7 +451,9 @@
     - `plutil -lint SquatCounterWatchExtension/Support/PrivacyInfo.xcprivacy` 通过
     - `xcodebuild build-for-testing -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'` 通过
     - `xcodebuild test -scheme SquatCounter -project SquatCounter.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' -only-testing:SquatCounterTests/WorkoutConfigStoreTests/testStorePersistsConfigAcrossStoreInstances` 通过
-- 下一步等待总控执行 checkpoint，并由用户完成 App Privacy 平台填报与回传
+- `PR #8` 已合入 `main`，`6.9` 已完成当前免费 `Apple Personal Team` 路径下的主线收口
+- App Privacy / TestFlight / 提审后台相关动作保留为后续提审路径事项，不作为本轮下一步
+- 下一步等待总控派发下一任务
 
 ---
 
