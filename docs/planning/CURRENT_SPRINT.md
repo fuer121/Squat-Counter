@@ -7,7 +7,7 @@
 本轮优先目标：
 
 1. 跑通 Watch 端训练主流程
-2. 用模拟识别先完成可联调闭环
+2. 完成真实动作计数第一阶段“真实可用闭环”（实时采样 + 一次性校准 + `live` 默认路径）
 3. 明确 iPhone companion 与同步边界
 4. 在进入 iPhone Companion 实现前冻结 `6.6` 页面范围与职责边界
 5. 前置测试、权限、隐私与发布门禁
@@ -18,7 +18,7 @@
 
 1. `WorkoutSessionViewModel` 与 Watch 主流程
 2. `TimerManager`、`HapticManager`
-3. 模拟识别与识别状态机
+3. 真实传感器采样接线、一次性校准、`live` 正式路径切换
 4. `TASK_007`：iPhone Companion 边界冻结与实现准备
 5. `TASK_008`：iPhone Companion 实现契约补齐
 6. `TASK_009`：跨设备同步边界冻结与实现准备
@@ -48,17 +48,17 @@
 - `TASK_012`：`docs/tasks/TASK_012_HEALTHKIT_PERMISSION_IMPLEMENTATION.md`
 - `TASK_013`：`docs/tasks/TASK_013_DATA_PRIVACY_COMPLIANCE_BOUNDARY.md`
 - `TASK_014`：`docs/tasks/TASK_014_DATA_PRIVACY_COMPLIANCE_IMPLEMENTATION.md`
-- 当前直接 owner：`开发 Agent 2`
-- 当前线程判断：`codex/task-011-healthkit-boundary`
-- 当前判断理由：`PR #6` 与 `PR #7` 已合入 `main`，`6.7` 与 `6.8` 已完成主线收口；`TASK_013` 已完成 `6.9` 边界冻结，`TASK_014` 已补齐实现契约；当前已完成 `6.9` 最小实现收口（`PrivacyInfo.xcprivacy` 与 `UserDefaults` 真实行为对齐、发布检查口径回写），等待总控 checkpoint
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐并随 `PR #6` 合入 `main`，`TASK_011` 已完成 `6.8` 边界冻结与实现准备口径，`TASK_012` 已完成 `6.8` 首批实现契约补齐，`6.8` 最小 `HealthKit` / 权限实现已完成并随 `PR #7` 合入 `main`，`TASK_013` 已完成 `6.9` 数据与隐私合规边界冻结 / 实现准备，`TASK_014` 已完成 `6.9` 实现契约补齐并完成最小实现收口（`plutil -lint`、`build-for-testing`、`WorkoutConfigStoreTests` 定向测试通过），并已完成免费 `Apple Personal Team` 最小手动回传（`2026-04-19`：本地安装运行通过、完成训练写入通过、倒计时取消不写入通过）
+- 当前直接 owner：`开发 Agent`
+- 当前线程判断：`codex/task-016-real-live-detection`
+- 当前判断理由：总控已派发“真实动作计数最小实现”执行，当前分支已在授权范围内完成实时采样、一次性校准持久化复用、正式路径切到 `live`、正式路径移除模拟识别与 `+1/-1`、并补齐最小测试与构建验证，待总控 checkpoint
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐并随 `PR #6` 合入 `main`，`TASK_011` 已完成 `6.8` 边界冻结与实现准备口径，`TASK_012` 已完成 `6.8` 首批实现契约补齐并随 `PR #7` 合入 `main`，`TASK_013` / `TASK_014` 已完成 `6.9` 收口；本轮 `6.5` 已完成“真实可用闭环”第一阶段最小实现与本地验证（Watch 无签名构建通过，`SquatCounterTests` 37 项通过）
 
 ## 当前交付状态
 
-- 当前分支：`codex/task-011-healthkit-boundary`
+- 当前分支：`codex/task-016-real-live-detection`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不在本文件中固化单个 commit hash
-- 当前 PR：`无`（当前处于 `6.9` 最小实现收口后 checkpoint 阶段，尚未创建 PR）
-- 当前下一步：等待总控基于 `2026-04-19` 用户手动回传执行 `6.9` 收口 checkpoint，判定是否进入下一阶段
+- 当前 PR：`无`（按任务要求本轮不创建 PR）
+- 当前下一步：回总控线程执行 checkpoint，确认是否进入真实设备最小门禁回传阶段
 
 ## 本阶段禁止扩展
 

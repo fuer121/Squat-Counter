@@ -261,28 +261,31 @@
 #### 模块状态
 
 - 状态：`进行中`
-- 阶段目标：完成可替换、可调参的 MVP 识别模块
+- 阶段目标：完成真实动作计数第一阶段“真实可用闭环”
 
 | 任务 | 优先级 | 状态 | 交付物 | 验收标准 |
 | --- | --- | --- | --- | --- |
 | 定义 `SquatDetectionManager` 接口 | P0 | 已完成 | 协议与事件流 | 只输出事件，不直接改 UI |
-| 实现模拟识别模式 | P0 | 已完成 | 调试模式 | 无真实传感器时可联调整体流程 |
+| 接入真实传感器采样链路 | P0 | 已完成 | `CoreMotion -> SquatMotionSample` | 训练态可持续驱动 `SquatDetectionManager.process(_:)` |
+| 落地一次性个人校准并持久化复用 | P0 | 已完成 | 校准流程与本地存储 | 首次校准成功后可复用，支持失败重试与内部重置 |
+| 正式训练路径切换到 `live` | P0 | 已完成 | `WorkoutSessionViewModel` 接线 | 正式路径默认 `live`，非训练态不累计计数 |
+| 正式路径移除模拟识别与 `+1 / -1` | P0 | 已完成 | Watch UI 调整 | 正式用户不可见，内部调试仍保留 |
 | 实现简化识别状态机 | P1 | 已完成 | MVP 识别逻辑 | 正常深蹲能计数 |
 | 增加 cooldown 机制 | P1 | 已完成 | 去重逻辑 | 单动作不会重复计数 |
-| 增加内部阈值配置 | P1 | 已完成 | 可调参数结构 | 可进行真机调参 |
+| 保留内部调试与调参能力 | P1 | 已完成 | 调试入口 | 仅内部可见，支持模拟触发与校准重置 |
 | 做真机识别调优 | P1 | 未开始 | 调优记录 | 半蹲、抬腕、晃动尽量不计数 |
 
 #### 当前待办
 
 - 已完成 `TASK_005` 边界冻结，正式确认“识别只输出事件、不直接改 UI / 训练状态 / 震动 / TimerManager”的实现前提
 - 已补齐 `TASK_006` 实现契约，使当前分支已发生的 `6.5` 最小实现、测试与构建验证具备合法承接文档
-- 已完成 `SquatDetectionManager` 最小实现，支持独立事件流、模拟识别模式、简化识别状态机、`cooldown`、防误触基线与内部可调阈值
-- 已完成 `WorkoutSessionViewModel` 对 `repDetected` 的接入，并冻结“识别只输出事件、不直接改 UI / 训练状态 / 震动 / TimerManager”的边界
-- 已完成 Watch 端模拟识别联调入口接入，保留手动 `+1 / -1` 作为纠错能力
-- 已完成与 `6.5` 直接相关的单测与集成测试验证：`WorkoutSessionViewModelTests` 与 `SquatDetectionManagerTests` 共 `17` 个测试通过
-- 已完成 `SquatCounterWatchApp` 的 Watch Simulator 最小构建验证，结果通过
-- `PR #3` 已合入 `main`，`6.5` 已完成主线收口
-- 下一步等待总控派发下一任务
+- 已完成 `TASK_016` 第一阶段最小实现：Watch 端真实采样接线、一次性校准持久化复用、`live` 默认正式路径、正式路径移除模拟识别与 `+1 / -1`
+- 已完成 `WatchArchitectureOverviewView` 正式路径收口，模拟识别与手动修正仅在内部调试模式可见
+- 已补齐 `6.5` 直接相关测试：新增校准存储与校准流程测试，并更新 `WorkoutSessionViewModel` 生命周期测试口径
+- 已完成本轮自动化验证：
+  - `xcodebuild build -project SquatCounter.xcodeproj -target SquatCounterWatchApp CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` 通过
+  - `xcodebuild test -scheme SquatCounter -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:SquatCounterTests` 通过（`37` 项）
+- 当前剩余：真实设备最小门禁场景（首次校准、复用校准、半蹲/抬腕/晃动防误触）仍需用户手动回传后才能判定“可联调”
 
 ---
 
@@ -576,7 +579,7 @@
 | 风险项 | 当前状态 | 影响 | 处理建议 |
 | --- | --- | --- | --- |
 | `1.0` 写入 Health app 的实现复杂度 | 已确认 | 影响权限、数据流和提审说明 | 在工程初始化阶段同步落地权限和 workout 保存方案 |
-| 动作识别准确率不可控 | 高风险 | 影响核心体验 | 先做模拟识别和可调阈值 |
+| 动作识别准确率不可控 | 高风险 | 影响核心体验 | 已切到 `live` 最小闭环，下一步以真实设备校准稳定性与防误触调优收口 |
 | companion 同步链路未实现 | 中风险 | 影响 iPhone/Watch 职责闭环与配置回传闭环 | 已先通过 `TASK_007` 冻结页面边界与 Watch 真源规则，再进入 `6.7` payload、重试和冲突处理实现 |
 | App Store 合规项容易后补遗漏 | 中风险 | 影响提审 | 将隐私和权限纳入开发前期 |
 
@@ -589,7 +592,7 @@
 1. 确认 `HealthKit` 写入策略
 2. 创建 `iOS + Watch companion` 工程
 3. 建共享模型与状态机
-4. 用模拟识别先跑通 Watch 主流程
+4. 完成真实动作计数第一阶段最小闭环（采样、校准、`live`、正式路径收口）
 5. 启动 iPhone 最小 companion 页面开发
 
 ### 本轮完成记录

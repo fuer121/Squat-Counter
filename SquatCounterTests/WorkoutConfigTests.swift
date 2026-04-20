@@ -103,6 +103,47 @@ final class WorkoutConfigStoreTests: XCTestCase {
     }
 }
 
+final class SquatCalibrationStoreTests: XCTestCase {
+    func testCalibrationStorePersistsAndReloadsProfile() {
+        let suiteName = #function
+        let defaults = makeUserDefaults(suiteName: suiteName)
+        let store = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        let profile = SquatCalibrationProfile(
+            standingGravityX: 0.1,
+            standingGravityY: -0.98,
+            standingGravityZ: 0.05,
+            fullDepthAngle: 0.82,
+            standingAngleTolerance: 0.14,
+            wristRaiseRateReference: 6.2
+        )
+
+        store.saveCalibrationProfile(profile)
+
+        let reloaded = UserDefaultsSquatCalibrationStore(defaults: defaults).loadCalibrationProfile()
+
+        XCTAssertEqual(reloaded, profile)
+    }
+
+    func testCalibrationStoreClearsSavedProfile() {
+        let suiteName = #function
+        let defaults = makeUserDefaults(suiteName: suiteName)
+        let store = UserDefaultsSquatCalibrationStore(defaults: defaults)
+
+        store.saveCalibrationProfile(SquatCalibrationProfile())
+        XCTAssertNotNil(store.loadCalibrationProfile())
+
+        store.clearCalibrationProfile()
+
+        XCTAssertNil(store.loadCalibrationProfile())
+    }
+
+    private func makeUserDefaults(suiteName: String) -> UserDefaults {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+}
+
 final class WorkoutSessionViewModelTests: XCTestCase {
     func testStartCountdownCancelsAndCompletesAutomatically() {
         let scheduler = TestTimerScheduler()
@@ -133,6 +174,85 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .training)
         XCTAssertEqual(viewModel.progress.currentSet, 1)
         XCTAssertEqual(viewModel.progress.currentRep, 0)
+    }
+
+    func testStartWorkoutTriggersCalibrationWhenProfileIsMissing() {
+        let scheduler = TestTimerScheduler()
+        let defaults = makeUserDefaults(suiteName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        let motionSampler = SquatMotionSamplerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            motionSampler: motionSampler
+        )
+
+        viewModel.startWorkout()
+
+        XCTAssertTrue(viewModel.isCalibrationInProgress)
+        XCTAssertEqual(viewModel.state, .idle)
+        XCTAssertEqual(motionSampler.calibrationStartCount, 1)
+
+        let profile = SquatCalibrationProfile()
+        motionSampler.completeCalibration(with: .success(profile))
+
+        XCTAssertFalse(viewModel.isCalibrationInProgress)
+        XCTAssertEqual(viewModel.state, .countdown)
+        XCTAssertEqual(calibrationStore.loadCalibrationProfile(), profile)
+    }
+
+    func testCalibrationFailureKeepsWorkoutIdle() {
+        let scheduler = TestTimerScheduler()
+        let defaults = makeUserDefaults(suiteName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        let motionSampler = SquatMotionSamplerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            motionSampler: motionSampler
+        )
+
+        viewModel.startWorkout()
+        motionSampler.completeCalibration(with: .failure(.insufficientSquatDepth))
+
+        XCTAssertFalse(viewModel.isCalibrationInProgress)
+        XCTAssertEqual(viewModel.state, .idle)
+        XCTAssertNil(calibrationStore.loadCalibrationProfile())
+        XCTAssertEqual(viewModel.detectionStatusMessage, "校准失败：请完成一次更完整的深蹲后重试。")
+    }
+
+    func testExistingCalibrationSkipsCalibrationAndStartsLiveSampling() {
+        let scheduler = TestTimerScheduler()
+        let defaults = makeUserDefaults(suiteName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        let profile = SquatCalibrationProfile(
+            standingGravityX: 0.0,
+            standingGravityY: -1.0,
+            standingGravityZ: 0.0,
+            fullDepthAngle: 0.8
+        )
+        calibrationStore.saveCalibrationProfile(profile)
+
+        let detectionManager = SquatDetectionManagerSpy()
+        let motionSampler = SquatMotionSamplerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            motionSampler: motionSampler
+        )
+
+        viewModel.startWorkout()
+        scheduler.advance(by: 3)
+
+        XCTAssertEqual(viewModel.state, .training)
+        XCTAssertEqual(motionSampler.calibrationStartCount, 0)
+        XCTAssertEqual(motionSampler.liveStartCount, 1)
+        XCTAssertEqual(motionSampler.lastLiveProfile, profile)
+        XCTAssertEqual(detectionManager.startModes, [.live])
     }
 
     func testPauseAndResumeFromTrainingStopsAndRestartsTempo() {
@@ -362,6 +482,8 @@ final class WorkoutSessionViewModelTests: XCTestCase {
             timerManager: TimerManager(scheduler: scheduler),
             hapticManager: hapticManager,
             detectionManager: detectionManager,
+            detectionMode: .simulation,
+            internalDebugEnabled: true,
             scheduler: scheduler
         )
 
@@ -389,7 +511,7 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(detectionManager.stopCount, 1)
 
         scheduler.advance(by: 3)
-        XCTAssertEqual(detectionManager.startModes, [.simulation])
+        XCTAssertEqual(detectionManager.startModes, [.live])
 
         viewModel.pauseWorkout()
         XCTAssertEqual(detectionManager.pauseCount, 1)
@@ -403,7 +525,7 @@ final class WorkoutSessionViewModelTests: XCTestCase {
 
         viewModel.completeRest()
         XCTAssertEqual(viewModel.state, .training)
-        XCTAssertEqual(detectionManager.startModes, [.simulation, .simulation])
+        XCTAssertEqual(detectionManager.startModes, [.live, .live])
 
         viewModel.confirmEndWorkout()
         XCTAssertEqual(viewModel.state, .idle)
@@ -546,6 +668,7 @@ final class WorkoutSessionViewModelTests: XCTestCase {
     private func makeTrainingViewModel(
         config: WorkoutConfig = WorkoutConfig(),
         configStore: WorkoutConfigStoring = UserDefaultsWorkoutConfigStore(defaults: UserDefaults(suiteName: UUID().uuidString)!),
+        calibrationStore: any SquatCalibrationStoring = UserDefaultsSquatCalibrationStore(defaults: UserDefaults(suiteName: UUID().uuidString)!),
         syncCoordinator: any WatchConnectivitySyncing = NoopSyncCoordinator(),
         healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager(),
         notificationCenter: NotificationCenter = .default,
@@ -553,11 +676,15 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         timerManager: any TimerManaging,
         hapticManager: any HapticManaging,
         detectionManager: any SquatDetectionManaging = SquatDetectionManagerSpy(),
+        motionSampler: any SquatMotionSampling = NoopSquatMotionSampler(),
+        detectionMode: SquatDetectionMode = .live,
+        internalDebugEnabled: Bool = false,
         scheduler: TestTimerScheduler
     ) -> WorkoutSessionViewModel {
         let viewModel = WorkoutSessionViewModel(
             config: config,
             configStore: configStore,
+            calibrationStore: calibrationStore,
             syncCoordinator: syncCoordinator,
             healthManager: healthManager,
             notificationCenter: notificationCenter,
@@ -565,6 +692,9 @@ final class WorkoutSessionViewModelTests: XCTestCase {
             timerManager: timerManager,
             hapticManager: hapticManager,
             detectionManager: detectionManager,
+            motionSampler: motionSampler,
+            detectionMode: detectionMode,
+            internalDebugEnabled: internalDebugEnabled,
             tempoCueInterval: 2.0
         )
         viewModel.startWorkout()
@@ -911,6 +1041,58 @@ private final class SquatDetectionManagerSpy: SquatDetectionManaging {
 
     func emit(_ event: SquatDetectionEvent) {
         handler?(event)
+    }
+}
+
+private final class SquatMotionSamplerSpy: SquatMotionSampling {
+    private(set) var isSamplingActive = false
+    private(set) var isPaused = false
+
+    private(set) var calibrationStartCount = 0
+    private(set) var liveStartCount = 0
+    private(set) var pauseCount = 0
+    private(set) var resumeCount = 0
+    private(set) var stopCount = 0
+    private(set) var lastLiveProfile: SquatCalibrationProfile?
+
+    private var calibrationHandler: ((SquatCalibrationResult) -> Void)?
+
+    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void) {
+        calibrationStartCount += 1
+        isSamplingActive = true
+        isPaused = false
+        calibrationHandler = handler
+    }
+
+    func completeCalibration(with result: SquatCalibrationResult) {
+        let handler = calibrationHandler
+        calibrationHandler = nil
+        isSamplingActive = false
+        handler?(result)
+    }
+
+    func startLiveSampling(with profile: SquatCalibrationProfile, handler: @escaping (SquatMotionSample) -> Void) {
+        liveStartCount += 1
+        lastLiveProfile = profile
+        isSamplingActive = true
+        isPaused = false
+    }
+
+    func pause() {
+        pauseCount += 1
+        isPaused = true
+    }
+
+    func resume() {
+        resumeCount += 1
+        isPaused = false
+    }
+
+    func stop() {
+        stopCount += 1
+        isSamplingActive = false
+        isPaused = false
+        calibrationHandler = nil
     }
 }
 

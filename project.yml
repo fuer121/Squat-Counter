@@ -86,6 +86,7 @@ targets:
         INFOPLIST_FILE: SquatCounterWatchExtension/Support/Info.plist
         CODE_SIGN_ENTITLEMENTS: SquatCounterWatchExtension/Support/SquatCounterWatchExtension.entitlements
     dependencies:
+      - sdk: CoreMotion.framework
       - sdk: HealthKit.framework
       - sdk: WatchConnectivity.framework
   SquatCounterTests:

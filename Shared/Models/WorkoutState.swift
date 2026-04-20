@@ -62,9 +62,12 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published private(set) var countdownRemainingSeconds: Int = 0
     @Published private(set) var healthAuthorizationStatus: WorkoutHealthAuthorizationStatus = .notDetermined
     @Published private(set) var healthStatusMessage: String?
+    @Published private(set) var detectionStatusMessage: String?
+    @Published private(set) var isCalibrationInProgress = false
     @Published var config: WorkoutConfig
 
     private let configStore: WorkoutConfigStoring
+    private let calibrationStore: any SquatCalibrationStoring
     private let syncCoordinator: any WatchConnectivitySyncing
     private let healthManager: any WorkoutHealthManaging
     private let notificationCenter: NotificationCenter
@@ -72,17 +75,25 @@ final class WorkoutSessionViewModel: ObservableObject {
     private let timerManager: any TimerManaging
     private let hapticManager: any HapticManaging
     private let detectionManager: any SquatDetectionManaging
+    private let motionSampler: any SquatMotionSampling
     private let detectionMode: SquatDetectionMode
+    private let internalDebugEnabled: Bool
     private let tempoCueInterval: TimeInterval
     private var lastConfigUpdatedAt: Date?
     private var pendingConfig: (config: WorkoutConfig, updatedAt: Date)?
     private var sessionStartedAt: Date?
     private var hasPreparedHealthWorkout = false
+    private var calibrationProfile: SquatCalibrationProfile?
     private var cancellables: Set<AnyCancellable> = []
+
+    var showsInternalDebugControls: Bool {
+        internalDebugEnabled
+    }
 
     init(
         config: WorkoutConfig? = nil,
         configStore: WorkoutConfigStoring = UserDefaultsWorkoutConfigStore(),
+        calibrationStore: any SquatCalibrationStoring = UserDefaultsSquatCalibrationStore(),
         syncCoordinator: any WatchConnectivitySyncing = WatchConnectivitySyncCoordinator.shared,
         healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager(),
         notificationCenter: NotificationCenter = .default,
@@ -90,10 +101,13 @@ final class WorkoutSessionViewModel: ObservableObject {
         timerManager: any TimerManaging = TimerManager(),
         hapticManager: any HapticManaging = HapticManager(),
         detectionManager: any SquatDetectionManaging = SquatDetectionManager(),
-        detectionMode: SquatDetectionMode = .simulation,
+        motionSampler: any SquatMotionSampling = NoopSquatMotionSampler(),
+        detectionMode: SquatDetectionMode = .live,
+        internalDebugEnabled: Bool = false,
         tempoCueInterval: TimeInterval = WorkoutSessionViewModel.defaultTempoCueInterval
     ) {
         self.configStore = configStore
+        self.calibrationStore = calibrationStore
         self.syncCoordinator = syncCoordinator
         self.healthManager = healthManager
         self.notificationCenter = notificationCenter
@@ -102,20 +116,64 @@ final class WorkoutSessionViewModel: ObservableObject {
         self.timerManager = timerManager
         self.hapticManager = hapticManager
         self.detectionManager = detectionManager
+        self.motionSampler = motionSampler
         self.detectionMode = detectionMode
+        self.internalDebugEnabled = internalDebugEnabled
         self.tempoCueInterval = tempoCueInterval
+        self.calibrationProfile = calibrationStore.loadCalibrationProfile()
         observeSyncPayloads()
     }
 
     func startWorkout() {
+        guard isCalibrationInProgress == false else { return }
         applyPendingConfigIfNeeded()
-        detectionManager.stop()
+        stopDetectionPipeline()
+        resetWorkoutRuntime()
+
+        if detectionMode == .live, calibrationProfile == nil {
+            startCalibrationAndThenCountdown()
+            return
+        }
+
+        startCountdown()
+    }
+
+    private func resetWorkoutRuntime() {
         progress = .empty
         pauseContext = nil
-        countdownRemainingSeconds = config.countdownSeconds
+        countdownRemainingSeconds = 0
         sessionStartedAt = nil
         hasPreparedHealthWorkout = false
         healthStatusMessage = nil
+    }
+
+    private func startCalibrationAndThenCountdown() {
+        isCalibrationInProgress = true
+        detectionStatusMessage = "首次训练前需要校准：请抬腕保持站立后完成一次深蹲。"
+
+        motionSampler.startCalibration { [weak self] result in
+            self?.handleCalibrationResult(result)
+        }
+    }
+
+    private func handleCalibrationResult(_ result: SquatCalibrationResult) {
+        isCalibrationInProgress = false
+
+        switch result {
+        case .success(let profile):
+            calibrationProfile = profile
+            calibrationStore.saveCalibrationProfile(profile)
+            detectionStatusMessage = "校准完成。"
+            startCountdown()
+        case .failure(let reason):
+            calibrationProfile = nil
+            detectionStatusMessage = calibrationFailureMessage(for: reason)
+            state = .idle
+        }
+    }
+
+    private func startCountdown() {
+        countdownRemainingSeconds = config.countdownSeconds
         state = .countdown
         startTimer(.countdown(durationSeconds: config.countdownSeconds))
     }
@@ -126,8 +184,23 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func simulateRepDetection() {
+        guard internalDebugEnabled else { return }
         guard state == .training else { return }
         detectionManager.simulateRep()
+    }
+
+    func resetCalibrationForDebug() {
+        guard internalDebugEnabled else { return }
+
+        stopDetectionPipeline()
+        calibrationStore.clearCalibrationProfile()
+        calibrationProfile = nil
+        isCalibrationInProgress = false
+        detectionStatusMessage = "已重置校准，下次开始训练会重新校准。"
+
+        if state != .idle && state != .completed {
+            returnToHome()
+        }
     }
 
     func incrementRep() {
@@ -148,6 +221,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         if state == .training {
             detectionManager.pause()
+            motionSampler.pause()
         }
 
         timerManager.pause()
@@ -165,6 +239,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         if resumeTarget == .training {
             detectionManager.resume()
+            motionSampler.resume()
         }
 
         timerManager.resume()
@@ -194,13 +269,14 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func returnToHome() {
-        detectionManager.stop()
+        stopDetectionPipeline()
         timerManager.cancel()
         progress = .empty
         pauseContext = nil
         countdownRemainingSeconds = 0
         sessionStartedAt = nil
         hasPreparedHealthWorkout = false
+        isCalibrationInProgress = false
         state = .idle
         applyPendingConfigIfNeeded()
     }
@@ -260,7 +336,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func completeCurrentSet() {
-        detectionManager.stop()
+        stopDetectionPipeline()
 
         if progress.currentSet >= config.totalSets {
             timerManager.cancel()
@@ -294,6 +370,14 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func startDetection() {
         detectionManager.start(mode: detectionMode) { [weak self] event in
             self?.handleDetectionEvent(event)
+        }
+
+        guard detectionMode == .live, let calibrationProfile else {
+            return
+        }
+
+        motionSampler.startLiveSampling(with: calibrationProfile) { [weak self] sample in
+            self?.detectionManager.process(sample)
         }
     }
 
@@ -489,6 +573,24 @@ final class WorkoutSessionViewModel: ObservableObject {
             return "当前设备不支持 Health 写入，训练仍可继续。"
         case .notDetermined, .sharingAuthorized:
             return nil
+        }
+    }
+
+    private func stopDetectionPipeline() {
+        motionSampler.stop()
+        detectionManager.stop()
+    }
+
+    private func calibrationFailureMessage(for reason: SquatCalibrationFailureReason) -> String {
+        switch reason {
+        case .motionUnavailable:
+            return "当前设备不支持动作采样，请检查手表传感器状态后重试。"
+        case .insufficientStableSamples:
+            return "校准失败：请保持站立稳定后重试。"
+        case .insufficientSquatDepth:
+            return "校准失败：请完成一次更完整的深蹲后重试。"
+        case .interrupted:
+            return "校准已中断，请重新开始。"
         }
     }
 }

@@ -62,6 +62,114 @@ struct SquatMotionSample: Equatable, Sendable {
     }
 }
 
+struct SquatCalibrationProfile: Codable, Equatable, Sendable {
+    let standingGravityX: Double
+    let standingGravityY: Double
+    let standingGravityZ: Double
+    let fullDepthAngle: Double
+    let standingAngleTolerance: Double
+    let wristRaiseRateReference: Double
+
+    init(
+        standingGravityX: Double,
+        standingGravityY: Double,
+        standingGravityZ: Double,
+        fullDepthAngle: Double,
+        standingAngleTolerance: Double = 0.12,
+        wristRaiseRateReference: Double = 5.0
+    ) {
+        let normalized = SquatCalibrationProfile.normalizedVector(
+            x: standingGravityX,
+            y: standingGravityY,
+            z: standingGravityZ
+        )
+
+        self.standingGravityX = normalized.x
+        self.standingGravityY = normalized.y
+        self.standingGravityZ = normalized.z
+        self.fullDepthAngle = fullDepthAngle.clamped(to: 0.35...1.6)
+        self.standingAngleTolerance = standingAngleTolerance.clamped(to: 0.03...0.3)
+        self.wristRaiseRateReference = wristRaiseRateReference.clamped(to: 1.0...12.0)
+    }
+
+    init() {
+        self.init(
+            standingGravityX: 0.0,
+            standingGravityY: -1.0,
+            standingGravityZ: 0.0,
+            fullDepthAngle: 0.75,
+            standingAngleTolerance: 0.12,
+            wristRaiseRateReference: 5.0
+        )
+    }
+
+    var standingGravityVector: (x: Double, y: Double, z: Double) {
+        (standingGravityX, standingGravityY, standingGravityZ)
+    }
+
+    private static func normalizedVector(x: Double, y: Double, z: Double) -> (x: Double, y: Double, z: Double) {
+        let magnitude = sqrt((x * x) + (y * y) + (z * z))
+        guard magnitude > 0.0001 else {
+            return (0.0, -1.0, 0.0)
+        }
+        return (x / magnitude, y / magnitude, z / magnitude)
+    }
+}
+
+enum SquatCalibrationFailureReason: String, Codable, Equatable, Sendable {
+    case motionUnavailable
+    case insufficientStableSamples
+    case insufficientSquatDepth
+    case interrupted
+}
+
+enum SquatCalibrationResult: Equatable, Sendable {
+    case success(SquatCalibrationProfile)
+    case failure(SquatCalibrationFailureReason)
+}
+
+protocol SquatMotionSampling: AnyObject {
+    var isSamplingActive: Bool { get }
+    var isPaused: Bool { get }
+
+    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void)
+    func startLiveSampling(with profile: SquatCalibrationProfile, handler: @escaping (SquatMotionSample) -> Void)
+    func pause()
+    func resume()
+    func stop()
+}
+
+final class NoopSquatMotionSampler: SquatMotionSampling {
+    private(set) var isSamplingActive = false
+    private(set) var isPaused = false
+
+    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void) {
+        isSamplingActive = false
+        isPaused = false
+        handler(.success(SquatCalibrationProfile()))
+    }
+
+    func startLiveSampling(with profile: SquatCalibrationProfile, handler: @escaping (SquatMotionSample) -> Void) {
+        isSamplingActive = true
+        isPaused = false
+    }
+
+    func pause() {
+        guard isSamplingActive else { return }
+        isPaused = true
+    }
+
+    func resume() {
+        guard isSamplingActive else { return }
+        isPaused = false
+    }
+
+    func stop() {
+        isSamplingActive = false
+        isPaused = false
+    }
+}
+
 protocol SquatDetectionManaging: AnyObject {
     var mode: SquatDetectionMode? { get }
     var isActive: Bool { get }

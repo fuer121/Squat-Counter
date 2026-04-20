@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		03821A31B283754B85447708 /* WorkoutConfigStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDEA763CC183B596D72A1FA /* WorkoutConfigStoring.swift */; };
+		0F2D4B4F76A54AE59CE5D801 /* WatchLiveSquatMotionSampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* WatchLiveSquatMotionSampler.swift */; };
 		0569286787F15C2E09659E05 /* TimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30A32732FC92D97C1F42E93 /* TimerManager.swift */; };
 		0B035FB7ACED8305A152D9F8 /* TrainingControlEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6697EFB233C63455B57FF357 /* TrainingControlEvent.swift */; };
 		0CDEA05937823A4DE153252F /* SquatMotionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ECDEAF55CDB34CE23A055FB /* SquatMotionState.swift */; };
@@ -53,6 +54,7 @@
 		D3719FF8BB769EEC9AF15BF1 /* SquatCounterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7800AEB413A665DFE77275F5 /* SquatCounterApp.swift */; };
 		DC43211B759578330327AF67 /* SquatCounterWatchExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1D53F17629DFC1941E39D5A2 /* SquatCounterWatchExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DDEA2DDCD75CEF7CCA1A1F95 /* WorkoutState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1178F7D1002B33D408D9CE7 /* WorkoutState.swift */; };
+		D0C6B7F526BA4F3E9B6D9D01 /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* CoreMotion.framework */; };
 		E722B844892422FBF8B9F361 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7758AB2EB4CC841060695DAD /* WatchConnectivity.framework */; };
 		EA47D8A238710FEC5DAE13CF /* WorkoutConfigStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDEA763CC183B596D72A1FA /* WorkoutConfigStoring.swift */; };
 		F3A271F03B13649AC16A2DB4 /* TimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30A32732FC92D97C1F42E93 /* TimerManager.swift */; };
@@ -130,6 +132,7 @@
 		9981927C5A7C149DB397B743 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9DD2D7B99FDD8F1923F295F5 /* WatchConnectivitySyncing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivitySyncing.swift; sourceTree = "<group>"; };
 		AA7AE6A05026EF62DBA8F3E8 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
+		B1C2D3E4F5061728394A5B6C /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
 		ACE6C7005503B74F33EC6A05 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
 		ADDEA763CC183B596D72A1FA /* WorkoutConfigStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutConfigStoring.swift; sourceTree = "<group>"; };
 		B7411382AFA183C08D040744 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -142,6 +145,7 @@
 		F1178F7D1002B33D408D9CE7 /* WorkoutState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutState.swift; sourceTree = "<group>"; };
 		F30A32732FC92D97C1F42E93 /* TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerManager.swift; sourceTree = "<group>"; };
 		F94835804B287FCDAB6C88A9 /* SquatDetectionEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquatDetectionEvent.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* WatchLiveSquatMotionSampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLiveSquatMotionSampler.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -149,6 +153,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D0C6B7F526BA4F3E9B6D9D01 /* CoreMotion.framework in Frameworks */,
 				AF5DBAC737465CDB88447CA7 /* HealthKit.framework in Frameworks */,
 				E722B844892422FBF8B9F361 /* WatchConnectivity.framework in Frameworks */,
 			);
@@ -230,6 +235,7 @@
 		86A29B61500DCED40948B757 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				B1C2D3E4F5061728394A5B6C /* CoreMotion.framework */,
 				AA7AE6A05026EF62DBA8F3E8 /* HealthKit.framework */,
 				7758AB2EB4CC841060695DAD /* WatchConnectivity.framework */,
 			);
@@ -241,6 +247,7 @@
 			children = (
 				2CE7C5A7F9DAA14AF7A81340 /* SquatCounterWatchExtensionApp.swift */,
 				127D3187F95AB347D20B1FCD /* WatchWorkoutHealthManager.swift */,
+				A1B2C3D4E5F60718293A4B5C /* WatchLiveSquatMotionSampler.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -540,6 +547,7 @@
 				1BFFF1F3829B730D79FBED96 /* WatchArchitectureOverviewView.swift in Sources */,
 				B7149F8AACB9C2C092D5ADD6 /* WatchConnectivitySyncing.swift in Sources */,
 				D34B92C15CC4753BD4DF3806 /* WatchHapticPerformer.swift in Sources */,
+				0F2D4B4F76A54AE59CE5D801 /* WatchLiveSquatMotionSampler.swift in Sources */,
 				351C0A5DEFD45F2B021DD4AC /* WatchWorkoutHealthManager.swift in Sources */,
 				F4951C6BF42213C9C838C344 /* WorkoutConfig.swift in Sources */,
 				03821A31B283754B85447708 /* WorkoutConfigStoring.swift in Sources */,

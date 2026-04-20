@@ -4,11 +4,17 @@ struct WatchArchitectureOverviewView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
     @State private var isEndWorkoutAlertPresented = false
 
-    init(healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager()) {
+    init(
+        healthManager: any WorkoutHealthManaging = NoopWorkoutHealthManager(),
+        motionSampler: any SquatMotionSampling = NoopSquatMotionSampler(),
+        internalDebugEnabled: Bool = false
+    ) {
         _viewModel = StateObject(
             wrappedValue: WorkoutSessionViewModel(
                 healthManager: healthManager,
-                hapticManager: HapticManager(performer: WatchHapticPerformer())
+                hapticManager: HapticManager(performer: WatchHapticPerformer()),
+                motionSampler: motionSampler,
+                internalDebugEnabled: internalDebugEnabled
             )
         )
     }
@@ -73,10 +79,18 @@ struct WatchArchitectureOverviewView: View {
                     settingLabel(title: "休息时间", value: "\(viewModel.config.restSeconds) 秒")
                 }
 
-                Button("Start", action: viewModel.startWorkout)
+                Button(viewModel.isCalibrationInProgress ? "校准中..." : "Start", action: viewModel.startWorkout)
+                    .disabled(viewModel.isCalibrationInProgress)
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 4)
+
+                if viewModel.showsInternalDebugControls {
+                    Button("重置校准（内部）", action: viewModel.resetCalibrationForDebug)
+                        .font(.footnote)
+                }
+
+                detectionStatusView
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -96,6 +110,7 @@ struct WatchArchitectureOverviewView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
 
+            detectionStatusView
             healthStatusView
 
             Button("取消", action: viewModel.cancelCountdown)
@@ -132,7 +147,7 @@ struct WatchArchitectureOverviewView: View {
                     .buttonStyle(.borderedProminent)
             }
 
-            if state == .training {
+            if state == .training, viewModel.showsInternalDebugControls {
                 HStack {
                     Button("-1", action: viewModel.decrementRep)
                     Button("+1", action: viewModel.incrementRep)
@@ -151,6 +166,7 @@ struct WatchArchitectureOverviewView: View {
                 }
             }
 
+            detectionStatusView
             healthStatusView
         }
         .padding()
@@ -261,7 +277,9 @@ struct WatchArchitectureOverviewView: View {
     private func primaryActionForSessionState() {
         switch viewModel.state {
         case .training:
-            viewModel.simulateRepDetection()
+            if viewModel.showsInternalDebugControls {
+                viewModel.simulateRepDetection()
+            }
         case .paused:
             viewModel.resumeWorkout()
         default:
@@ -272,6 +290,16 @@ struct WatchArchitectureOverviewView: View {
     @ViewBuilder
     private var healthStatusView: some View {
         if let message = viewModel.healthStatusMessage {
+            Text(message)
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var detectionStatusView: some View {
+        if let message = viewModel.detectionStatusMessage {
             Text(message)
                 .font(.footnote)
                 .multilineTextAlignment(.center)
@@ -304,16 +332,21 @@ struct WatchArchitectureOverviewView: View {
         case .paused:
             return "保持当前训练进度，恢复后继续。"
         default:
-            return "当前先用模拟识别联调主流程，+1 / -1 仅用于手动纠错。"
+            if viewModel.showsInternalDebugControls {
+                return "Debug 模式：可用模拟识别与手动修正联调。"
+            }
+            return "请按标准深蹲动作完成计数。"
         }
     }
 
-    private func primaryButtonTitle(for state: WorkoutState) -> String {
+    private func primaryButtonTitle(for state: WorkoutState) -> String? {
         switch state {
         case .paused:
             return "继续"
-        default:
+        case .training where viewModel.showsInternalDebugControls:
             return "模拟识别"
+        default:
+            return nil
         }
     }
 }
