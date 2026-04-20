@@ -18,6 +18,7 @@
 - HealthKit 策略：`1.0` 目标写入 `Health app` 的 workout
 - `6.8` 首批权限范围：仅限 Watch 侧最小 workout 相关 `HealthKit` 权限；`iPhone` 不单独请求 `HealthKit`，`1.0` 不读取心率、卡路里等额外健康数据
 - `6.8` `Workout Session` / 写入边界：系统会话仅覆盖 Watch 端一次明确开始的训练主链路；训练完成路径最多写入一条 workout，中止 / 取消 / 拒权路径不写入，且不阻塞本地训练
+- `6.9` 数据边界：`1.0` 首批只承接 `UserDefaults` 训练默认配置存储、`WatchConnectivity` 最小同步 payload、Watch 完成路径写入单条 `Health app` workout；不扩展账号数据与额外健康数据类型
 - 首发 KPI：下载量达到 `100`
 - 首发市场策略：中国区、中文、免费
 
