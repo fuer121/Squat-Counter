@@ -48,17 +48,18 @@
 - `TASK_012`：`docs/tasks/TASK_012_HEALTHKIT_PERMISSION_IMPLEMENTATION.md`
 - `TASK_013`：`docs/tasks/TASK_013_DATA_PRIVACY_COMPLIANCE_BOUNDARY.md`
 - `TASK_014`：`docs/tasks/TASK_014_DATA_PRIVACY_COMPLIANCE_IMPLEMENTATION.md`
+- `TASK_017`：`docs/tasks/TASK_017_REAL_LIVE_DETECTION_VALIDATION_REPAIR.md`
 - 当前直接 owner：`开发 Agent`
 - 当前线程判断：`codex/task-016-real-live-detection`
-- 当前判断理由：总控已派发“真实动作计数最小实现”执行，当前分支已在授权范围内完成实时采样、一次性校准持久化复用、正式路径切到 `live`、正式路径移除模拟识别与 `+1/-1`、并补齐最小测试与构建验证，待总控 checkpoint
-- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐并随 `PR #6` 合入 `main`，`TASK_011` 已完成 `6.8` 边界冻结与实现准备口径，`TASK_012` 已完成 `6.8` 首批实现契约补齐并随 `PR #7` 合入 `main`，`TASK_013` / `TASK_014` 已完成 `6.9` 收口；本轮 `6.5` 已完成“真实可用闭环”第一阶段最小实现与本地验证（Watch 无签名构建通过，`SquatCounterTests` 37 项通过）
+- 当前判断理由：用户已在真实 `iPhone 16 + Apple Watch Series 8` 上完成 `TASK_016` 真机验证，结果为不通过；当前先通过 `TASK_017` 收敛失败后的需求口径、修复边界和后续任务拆分，再继续代码修复
+- 当前状态：`TASK_004` 已完成并合入 `main`，`TASK_005` 已完成边界冻结，`TASK_006` 已完成并随 `PR #3` 合入 `main`，`TASK_007` 已完成前置边界冻结并收口，`TASK_008` 已完成首批页面实现并随 `PR #4` 合入 `main`，`TASK_009` 已完成 `6.7` 前置边界冻结 / 实现准备，`TASK_010` 已完成 `6.7` 首批实现契约补齐并随 `PR #6` 合入 `main`，`TASK_011` 已完成 `6.8` 边界冻结与实现准备口径，`TASK_012` 已完成 `6.8` 首批实现契约补齐并随 `PR #7` 合入 `main`，`TASK_013` / `TASK_014` 已完成 `6.9` 收口；本轮 `6.5` 的 `TASK_016` 本地实现已完成但真机验证失败，`TASK_017` 已将必须修复项、验收口径修订和后续新增范围拆开
 
 ## 当前交付状态
 
 - 当前分支：`codex/task-016-real-live-detection`
 - 当前提交状态：以当前任务分支 `HEAD` 为准，不在本文件中固化单个 commit hash
 - 当前 PR：`无`（按任务要求本轮不创建 PR）
-- 当前下一步：回总控线程执行 checkpoint，确认是否进入真实设备最小门禁回传阶段
+- 当前下一步：基于 `TASK_017` 派发真机失败修复任务，优先修复正式路径 UI、校准体验 / 采样窗口和真实识别链路；iPhone 端重置校准入口后续单独立项
 
 ## 本阶段禁止扩展
 
