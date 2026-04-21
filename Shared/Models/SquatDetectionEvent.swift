@@ -20,17 +20,17 @@ struct SquatDetectionThresholds: Equatable, Sendable {
     let maximumWristRaiseMagnitude: Double
 
     init(
-        descendingThreshold: Double = 0.32,
-        bottomThreshold: Double = 0.68,
-        ascendingThreshold: Double = 0.42,
-        standingThreshold: Double = 0.12,
-        standingStabilityDuration: TimeInterval = 0.35,
+        descendingThreshold: Double = 0.2,
+        bottomThreshold: Double = 0.48,
+        ascendingThreshold: Double = 0.28,
+        standingThreshold: Double = 0.16,
+        standingStabilityDuration: TimeInterval = 0.2,
         cooldownDuration: TimeInterval = 0.8,
-        maximumWristRaiseMagnitude: Double = 0.45
+        maximumWristRaiseMagnitude: Double = 0.6
     ) {
-        let clampedStanding = standingThreshold.clamped(to: 0.0...0.25)
-        let clampedDescending = max(descendingThreshold.clamped(to: 0.15...0.75), clampedStanding + 0.05)
-        let clampedBottom = max(bottomThreshold.clamped(to: 0.3...1.0), clampedDescending + 0.1)
+        let clampedStanding = standingThreshold.clamped(to: 0.0...0.35)
+        let clampedDescending = max(descendingThreshold.clamped(to: 0.1...0.8), clampedStanding + 0.04)
+        let clampedBottom = max(bottomThreshold.clamped(to: 0.22...1.0), clampedDescending + 0.08)
         let clampedAscending = ascendingThreshold.clamped(to: (clampedStanding + 0.05)...(clampedBottom - 0.05))
 
         self.descendingThreshold = clampedDescending
@@ -66,7 +66,9 @@ struct SquatCalibrationProfile: Codable, Equatable, Sendable {
     let standingGravityX: Double
     let standingGravityY: Double
     let standingGravityZ: Double
+    let standingPitch: Double
     let fullDepthAngle: Double
+    let fullDepthPitchDelta: Double
     let standingAngleTolerance: Double
     let wristRaiseRateReference: Double
 
@@ -74,7 +76,9 @@ struct SquatCalibrationProfile: Codable, Equatable, Sendable {
         standingGravityX: Double,
         standingGravityY: Double,
         standingGravityZ: Double,
+        standingPitch: Double = 0.0,
         fullDepthAngle: Double,
+        fullDepthPitchDelta: Double = 0.18,
         standingAngleTolerance: Double = 0.12,
         wristRaiseRateReference: Double = 5.0
     ) {
@@ -87,7 +91,9 @@ struct SquatCalibrationProfile: Codable, Equatable, Sendable {
         self.standingGravityX = normalized.x
         self.standingGravityY = normalized.y
         self.standingGravityZ = normalized.z
-        self.fullDepthAngle = fullDepthAngle.clamped(to: 0.35...1.6)
+        self.standingPitch = standingPitch.clamped(to: -2.5...2.5)
+        self.fullDepthAngle = fullDepthAngle.clamped(to: 0.12...1.6)
+        self.fullDepthPitchDelta = fullDepthPitchDelta.clamped(to: 0.08...1.2)
         self.standingAngleTolerance = standingAngleTolerance.clamped(to: 0.03...0.3)
         self.wristRaiseRateReference = wristRaiseRateReference.clamped(to: 1.0...12.0)
     }
@@ -97,7 +103,9 @@ struct SquatCalibrationProfile: Codable, Equatable, Sendable {
             standingGravityX: 0.0,
             standingGravityY: -1.0,
             standingGravityZ: 0.0,
+            standingPitch: 0.0,
             fullDepthAngle: 0.75,
+            fullDepthPitchDelta: 0.18,
             standingAngleTolerance: 0.12,
             wristRaiseRateReference: 5.0
         )
@@ -105,6 +113,43 @@ struct SquatCalibrationProfile: Codable, Equatable, Sendable {
 
     var standingGravityVector: (x: Double, y: Double, z: Double) {
         (standingGravityX, standingGravityY, standingGravityZ)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case standingGravityX
+        case standingGravityY
+        case standingGravityZ
+        case standingPitch
+        case fullDepthAngle
+        case fullDepthPitchDelta
+        case standingAngleTolerance
+        case wristRaiseRateReference
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            standingGravityX: try container.decode(Double.self, forKey: .standingGravityX),
+            standingGravityY: try container.decode(Double.self, forKey: .standingGravityY),
+            standingGravityZ: try container.decode(Double.self, forKey: .standingGravityZ),
+            standingPitch: try container.decodeIfPresent(Double.self, forKey: .standingPitch) ?? 0.0,
+            fullDepthAngle: try container.decode(Double.self, forKey: .fullDepthAngle),
+            fullDepthPitchDelta: try container.decodeIfPresent(Double.self, forKey: .fullDepthPitchDelta) ?? 0.18,
+            standingAngleTolerance: try container.decodeIfPresent(Double.self, forKey: .standingAngleTolerance) ?? 0.12,
+            wristRaiseRateReference: try container.decodeIfPresent(Double.self, forKey: .wristRaiseRateReference) ?? 5.0
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(standingGravityX, forKey: .standingGravityX)
+        try container.encode(standingGravityY, forKey: .standingGravityY)
+        try container.encode(standingGravityZ, forKey: .standingGravityZ)
+        try container.encode(standingPitch, forKey: .standingPitch)
+        try container.encode(fullDepthAngle, forKey: .fullDepthAngle)
+        try container.encode(fullDepthPitchDelta, forKey: .fullDepthPitchDelta)
+        try container.encode(standingAngleTolerance, forKey: .standingAngleTolerance)
+        try container.encode(wristRaiseRateReference, forKey: .wristRaiseRateReference)
     }
 
     private static func normalizedVector(x: Double, y: Double, z: Double) -> (x: Double, y: Double, z: Double) {
@@ -120,6 +165,8 @@ enum SquatCalibrationFailureReason: String, Codable, Equatable, Sendable {
     case motionUnavailable
     case insufficientStableSamples
     case insufficientSquatDepth
+    case insufficientReps
+    case timedOut
     case interrupted
 }
 
@@ -128,11 +175,20 @@ enum SquatCalibrationResult: Equatable, Sendable {
     case failure(SquatCalibrationFailureReason)
 }
 
+enum SquatCalibrationPhase: Equatable, Sendable {
+    case preparingStanding(secondsRemaining: Int)
+    case capturingSquats(repsCompleted: Int, repsTarget: Int)
+    case analyzing
+}
+
 protocol SquatMotionSampling: AnyObject {
     var isSamplingActive: Bool { get }
     var isPaused: Bool { get }
 
-    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void)
+    func startCalibration(
+        progress: @escaping (SquatCalibrationPhase) -> Void,
+        completion: @escaping (SquatCalibrationResult) -> Void
+    )
     func startLiveSampling(with profile: SquatCalibrationProfile, handler: @escaping (SquatMotionSample) -> Void)
     func pause()
     func resume()
@@ -143,10 +199,14 @@ final class NoopSquatMotionSampler: SquatMotionSampling {
     private(set) var isSamplingActive = false
     private(set) var isPaused = false
 
-    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void) {
+    func startCalibration(
+        progress: @escaping (SquatCalibrationPhase) -> Void,
+        completion: @escaping (SquatCalibrationResult) -> Void
+    ) {
         isSamplingActive = false
         isPaused = false
-        handler(.success(SquatCalibrationProfile()))
+        progress(.analyzing)
+        completion(.success(SquatCalibrationProfile()))
     }
 
     func startLiveSampling(with profile: SquatCalibrationProfile, handler: @escaping (SquatMotionSample) -> Void) {

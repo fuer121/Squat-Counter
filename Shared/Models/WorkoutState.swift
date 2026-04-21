@@ -63,6 +63,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published private(set) var healthAuthorizationStatus: WorkoutHealthAuthorizationStatus = .notDetermined
     @Published private(set) var healthStatusMessage: String?
     @Published private(set) var detectionStatusMessage: String?
+    @Published private(set) var liveObservationMessage: String?
     @Published private(set) var isCalibrationInProgress = false
     @Published var config: WorkoutConfig
 
@@ -145,14 +146,31 @@ final class WorkoutSessionViewModel: ObservableObject {
         sessionStartedAt = nil
         hasPreparedHealthWorkout = false
         healthStatusMessage = nil
+        liveObservationMessage = nil
     }
 
     private func startCalibrationAndThenCountdown() {
         isCalibrationInProgress = true
-        detectionStatusMessage = "首次训练前需要校准：请抬腕保持站立后完成一次深蹲。"
+        detectionStatusMessage = "首次训练需要校准：先保持站立稳定，再按提示连续完成深蹲。"
 
-        motionSampler.startCalibration { [weak self] result in
-            self?.handleCalibrationResult(result)
+        motionSampler.startCalibration(
+            progress: { [weak self] phase in
+                self?.handleCalibrationProgress(phase)
+            },
+            completion: { [weak self] result in
+                self?.handleCalibrationResult(result)
+            }
+        )
+    }
+
+    private func handleCalibrationProgress(_ phase: SquatCalibrationPhase) {
+        switch phase {
+        case .preparingStanding(let secondsRemaining):
+            detectionStatusMessage = "校准准备中：请保持站立稳定（约 \(secondsRemaining) 秒）"
+        case .capturingSquats(let repsCompleted, let repsTarget):
+            detectionStatusMessage = "校准进行中：已记录 \(repsCompleted)/\(repsTarget) 次深蹲"
+        case .analyzing:
+            detectionStatusMessage = "校准数据分析中，请稍候…"
         }
     }
 
@@ -163,7 +181,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         case .success(let profile):
             calibrationProfile = profile
             calibrationStore.saveCalibrationProfile(profile)
-            detectionStatusMessage = "校准完成。"
+            detectionStatusMessage = "校准完成，已保存本地校准结果。"
             startCountdown()
         case .failure(let reason):
             calibrationProfile = nil
@@ -377,6 +395,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         motionSampler.startLiveSampling(with: calibrationProfile) { [weak self] sample in
+            self?.updateLiveObservation(with: sample)
             self?.detectionManager.process(sample)
         }
     }
@@ -407,9 +426,13 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func handleDetectionEvent(_ event: SquatDetectionEvent) {
         switch event {
         case .repDetected:
+            detectionStatusMessage = "识别成功：+1"
             applyRepIncrement()
-        case .motionStateChanged:
-            break
+        case .motionStateChanged(let state):
+            detectionStatusMessage = detectionMessage(for: state)
+            if internalDebugEnabled {
+                liveObservationMessage = "识别状态：\(detectionStateText(from: event))"
+            }
         }
     }
 
@@ -589,8 +612,47 @@ final class WorkoutSessionViewModel: ObservableObject {
             return "校准失败：请保持站立稳定后重试。"
         case .insufficientSquatDepth:
             return "校准失败：请完成一次更完整的深蹲后重试。"
+        case .insufficientReps:
+            return "校准失败：有效深蹲次数不足，请按提示连续完成更多深蹲。"
+        case .timedOut:
+            return "校准超时：请重新开始并连续完成深蹲。"
         case .interrupted:
             return "校准已中断，请重新开始。"
+        }
+    }
+
+    private func updateLiveObservation(with sample: SquatMotionSample) {
+        guard internalDebugEnabled else {
+            return
+        }
+
+        let depthText = String(format: "%.2f", sample.normalizedDepth)
+        let wristText = String(format: "%.2f", sample.wristRaiseMagnitude)
+        let standingText = sample.isStandingStable ? "稳定" : "不稳定"
+        liveObservationMessage = "深度:\(depthText) 抬腕:\(wristText) 站立:\(standingText)"
+    }
+
+    private func detectionStateText(from event: SquatDetectionEvent) -> String {
+        switch event {
+        case .repDetected:
+            return "repDetected"
+        case .motionStateChanged(let state):
+            return String(describing: state)
+        }
+    }
+
+    private func detectionMessage(for state: SquatMotionState) -> String {
+        switch state {
+        case .standing:
+            return "识别中：保持稳定站立"
+        case .descending:
+            return "识别中：检测到下蹲动作"
+        case .bottom:
+            return "识别中：到达最低点"
+        case .ascending:
+            return "识别中：检测到起身动作"
+        case .repCompleted:
+            return "识别中：本次动作完成"
         }
     }
 }

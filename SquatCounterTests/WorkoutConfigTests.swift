@@ -202,6 +202,27 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(calibrationStore.loadCalibrationProfile(), profile)
     }
 
+    func testCalibrationShowsGuidanceAndCompletionFeedback() {
+        let scheduler = TestTimerScheduler()
+        let defaults = makeUserDefaults(suiteName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        let motionSampler = SquatMotionSamplerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            motionSampler: motionSampler
+        )
+
+        viewModel.startWorkout()
+
+        XCTAssertEqual(viewModel.detectionStatusMessage, "校准准备中：请保持站立稳定（约 2 秒）")
+
+        motionSampler.completeCalibration(with: .success(SquatCalibrationProfile()))
+
+        XCTAssertEqual(viewModel.detectionStatusMessage, "校准完成，已保存本地校准结果。")
+    }
+
     func testCalibrationFailureKeepsWorkoutIdle() {
         let scheduler = TestTimerScheduler()
         let defaults = makeUserDefaults(suiteName: #function)
@@ -221,6 +242,25 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .idle)
         XCTAssertNil(calibrationStore.loadCalibrationProfile())
         XCTAssertEqual(viewModel.detectionStatusMessage, "校准失败：请完成一次更完整的深蹲后重试。")
+    }
+
+    func testCalibrationFailureForInsufficientRepsShowsExplicitMessage() {
+        let scheduler = TestTimerScheduler()
+        let defaults = makeUserDefaults(suiteName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        let motionSampler = SquatMotionSamplerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            motionSampler: motionSampler
+        )
+
+        viewModel.startWorkout()
+        motionSampler.completeCalibration(with: .failure(.insufficientReps))
+
+        XCTAssertEqual(viewModel.state, .idle)
+        XCTAssertEqual(viewModel.detectionStatusMessage, "校准失败：有效深蹲次数不足，请按提示连续完成更多深蹲。")
     }
 
     func testExistingCalibrationSkipsCalibrationAndStartsLiveSampling() {
@@ -1054,14 +1094,20 @@ private final class SquatMotionSamplerSpy: SquatMotionSampling {
     private(set) var resumeCount = 0
     private(set) var stopCount = 0
     private(set) var lastLiveProfile: SquatCalibrationProfile?
+    private(set) var progressEvents: [SquatCalibrationPhase] = []
 
     private var calibrationHandler: ((SquatCalibrationResult) -> Void)?
 
-    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void) {
+    func startCalibration(
+        progress: @escaping (SquatCalibrationPhase) -> Void,
+        completion: @escaping (SquatCalibrationResult) -> Void
+    ) {
         calibrationStartCount += 1
         isSamplingActive = true
         isPaused = false
-        calibrationHandler = handler
+        calibrationHandler = completion
+        progressEvents.append(.preparingStanding(secondsRemaining: 2))
+        progress(.preparingStanding(secondsRemaining: 2))
     }
 
     func completeCalibration(with result: SquatCalibrationResult) {

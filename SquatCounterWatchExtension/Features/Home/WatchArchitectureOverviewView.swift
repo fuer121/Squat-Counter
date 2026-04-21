@@ -66,6 +66,7 @@ struct WatchArchitectureOverviewView: View {
                     .foregroundStyle(.secondary)
 
                 healthStatusView
+                detectionStatusView
 
                 Stepper(value: repsBinding, in: WorkoutConfig.repsRange) {
                     settingLabel(title: "每组次数", value: "\(viewModel.config.repsPerSet)")
@@ -84,13 +85,6 @@ struct WatchArchitectureOverviewView: View {
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 4)
-
-                if viewModel.showsInternalDebugControls {
-                    Button("重置校准（内部）", action: viewModel.resetCalibrationForDebug)
-                        .font(.footnote)
-                }
-
-                detectionStatusView
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -111,6 +105,7 @@ struct WatchArchitectureOverviewView: View {
                 .foregroundStyle(.secondary)
 
             detectionStatusView
+            liveObservationView
             healthStatusView
 
             Button("取消", action: viewModel.cancelCountdown)
@@ -167,6 +162,7 @@ struct WatchArchitectureOverviewView: View {
             }
 
             detectionStatusView
+            liveObservationView
             healthStatusView
         }
         .padding()
@@ -203,6 +199,7 @@ struct WatchArchitectureOverviewView: View {
             }
 
             healthStatusView
+            liveObservationView
         }
         .padding()
     }
@@ -222,6 +219,7 @@ struct WatchArchitectureOverviewView: View {
                 .buttonStyle(.borderedProminent)
 
             healthStatusView
+            liveObservationView
 
             Button("返回首页", action: viewModel.returnToHome)
         }
@@ -302,6 +300,16 @@ struct WatchArchitectureOverviewView: View {
         if let message = viewModel.detectionStatusMessage {
             Text(message)
                 .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var liveObservationView: some View {
+        if viewModel.showsInternalDebugControls, let observation = viewModel.liveObservationMessage {
+            Text(observation)
+                .font(.caption2)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
         }

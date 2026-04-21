@@ -8,6 +8,12 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         case live
     }
 
+    private enum CalibrationMotionState {
+        case standing
+        case descending
+        case bottom
+    }
+
     private struct MotionVector {
         let x: Double
         let y: Double
@@ -30,6 +36,10 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
             (x * other.x) + (y * other.y) + (z * other.z)
         }
 
+        func angle(to other: MotionVector) -> Double {
+            acos(dot(other).clamped(to: -1.0...1.0))
+        }
+
         static func average(_ vectors: [MotionVector]) -> MotionVector {
             guard vectors.isEmpty == false else {
                 return MotionVector(x: 0.0, y: -1.0, z: 0.0)
@@ -46,28 +56,41 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
             )
             .normalized()
         }
-
-        func angle(to other: MotionVector) -> Double {
-            acos(dot(other).clamped(to: -1.0...1.0))
-        }
     }
 
     private let motionManager: CMMotionManager
 
-    private let standingCaptureDuration: TimeInterval = 1.5
-    private let calibrationDuration: TimeInterval = 6.0
-    private let minimumStandingSamples = 20
-    private let minimumSquatDepthAngle = 0.28
+    private let standingPreparationDuration: TimeInterval = 2.0
+    private let calibrationWindowDuration: TimeInterval = 35.0
+    private let minimumStandingSamples = 30
+    private let targetCalibrationReps = 10
+    private let minimumCalibrationReps = 6
+
+    private let descendingAngleThreshold: Double = 0.08
+    private let bottomAngleThreshold: Double = 0.16
+    private let standingAngleThreshold: Double = 0.06
+    private let descendingPitchThreshold: Double = 0.06
+    private let bottomPitchThreshold: Double = 0.14
+    private let standingPitchThreshold: Double = 0.05
 
     private var activeMode: ActiveMode = .idle
     private(set) var isPaused = false
 
     private var calibrationStartedAt: TimeInterval = 0
     private var calibrationStandingSamples: [MotionVector] = []
+    private var calibrationStandingPitchSamples: [Double] = []
     private var calibrationBaseline: MotionVector?
-    private var calibrationMaxDepthAngle: Double = 0
+    private var calibrationStandingPitch: Double?
+    private var calibrationMotionState: CalibrationMotionState = .standing
+    private var currentRepPeakAngle: Double = 0
+    private var currentRepPeakPitch: Double = 0
+    private var completedCalibrationReps = 0
+    private var completedRepPeakAngles: [Double] = []
+    private var completedRepPeakPitchDeltas: [Double] = []
     private var calibrationMaxRotationRate: Double = 0
-    private var calibrationHandler: ((SquatCalibrationResult) -> Void)?
+    private var calibrationProgress: ((SquatCalibrationPhase) -> Void)?
+    private var calibrationCompletion: ((SquatCalibrationResult) -> Void)?
+    private var lastPreparationSecondsRemaining: Int?
 
     private var liveProfile: SquatCalibrationProfile?
     private var liveHandler: ((SquatMotionSample) -> Void)?
@@ -81,21 +104,36 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         self.motionManager.deviceMotionUpdateInterval = 1.0 / 50.0
     }
 
-    func startCalibration(handler: @escaping (SquatCalibrationResult) -> Void) {
+    func startCalibration(
+        progress: @escaping (SquatCalibrationPhase) -> Void,
+        completion: @escaping (SquatCalibrationResult) -> Void
+    ) {
         guard motionManager.isDeviceMotionAvailable else {
-            handler(.failure(.motionUnavailable))
+            completion(.failure(.motionUnavailable))
             return
         }
 
         stopInternal(notifyCalibrationInterrupted: false)
         activeMode = .calibrating
         isPaused = false
+
         calibrationStartedAt = 0
         calibrationStandingSamples = []
+        calibrationStandingPitchSamples = []
         calibrationBaseline = nil
-        calibrationMaxDepthAngle = 0
+        calibrationStandingPitch = nil
+        calibrationMotionState = .standing
+        currentRepPeakAngle = 0
+        currentRepPeakPitch = 0
+        completedCalibrationReps = 0
+        completedRepPeakAngles = []
+        completedRepPeakPitchDeltas = []
         calibrationMaxRotationRate = 0
-        calibrationHandler = handler
+        calibrationProgress = progress
+        calibrationCompletion = completion
+        lastPreparationSecondsRemaining = nil
+
+        progress(.preparingStanding(secondsRemaining: Int(ceil(standingPreparationDuration))))
         startDeviceMotionUpdatesIfNeeded()
     }
 
@@ -127,8 +165,8 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     }
 
     private func stopInternal(notifyCalibrationInterrupted: Bool) {
-        let shouldNotifyCalibrationInterrupted = notifyCalibrationInterrupted && activeMode == .calibrating
-        let calibrationHandler = self.calibrationHandler
+        let shouldNotifyInterrupted = notifyCalibrationInterrupted && activeMode == .calibrating
+        let calibrationCompletion = self.calibrationCompletion
 
         motionManager.stopDeviceMotionUpdates()
         activeMode = .idle
@@ -136,16 +174,25 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
 
         calibrationStartedAt = 0
         calibrationStandingSamples = []
+        calibrationStandingPitchSamples = []
         calibrationBaseline = nil
-        calibrationMaxDepthAngle = 0
+        calibrationStandingPitch = nil
+        calibrationMotionState = .standing
+        currentRepPeakAngle = 0
+        currentRepPeakPitch = 0
+        completedCalibrationReps = 0
+        completedRepPeakAngles = []
+        completedRepPeakPitchDeltas = []
         calibrationMaxRotationRate = 0
-        self.calibrationHandler = nil
+        calibrationProgress = nil
+        self.calibrationCompletion = nil
+        lastPreparationSecondsRemaining = nil
 
         liveProfile = nil
         liveHandler = nil
 
-        if shouldNotifyCalibrationInterrupted {
-            calibrationHandler?(.failure(.interrupted))
+        if shouldNotifyInterrupted {
+            calibrationCompletion?(.failure(.interrupted))
         }
     }
 
@@ -175,71 +222,153 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     }
 
     private func handleCalibrationMotion(_ motion: CMDeviceMotion) {
-        let timestamp = motion.timestamp
         if calibrationStartedAt == 0 {
-            calibrationStartedAt = timestamp
+            calibrationStartedAt = motion.timestamp
         }
 
-        let elapsed = timestamp - calibrationStartedAt
+        let elapsed = motion.timestamp - calibrationStartedAt
         let gravity = MotionVector(x: motion.gravity.x, y: motion.gravity.y, z: motion.gravity.z).normalized()
+        let pitch = motion.attitude.pitch
         let rotationRateMagnitude = MotionVector(
             x: motion.rotationRate.x,
             y: motion.rotationRate.y,
             z: motion.rotationRate.z
         ).magnitude
+        calibrationMaxRotationRate = max(calibrationMaxRotationRate, rotationRateMagnitude)
 
-        if elapsed <= standingCaptureDuration {
+        if elapsed <= standingPreparationDuration {
             calibrationStandingSamples.append(gravity)
+            calibrationStandingPitchSamples.append(pitch)
+            reportPreparationProgress(elapsed: elapsed)
             return
         }
 
-        if calibrationBaseline == nil {
+        if calibrationBaseline == nil || calibrationStandingPitch == nil {
+            calibrationStandingSamples.append(gravity)
+            calibrationStandingPitchSamples.append(pitch)
+
             guard calibrationStandingSamples.count >= minimumStandingSamples else {
-                emitCalibrationResult(.failure(.insufficientStableSamples))
+                if elapsed >= standingPreparationDuration + 5.0 {
+                    emitCalibrationResult(.failure(.insufficientStableSamples))
+                }
                 return
             }
 
             calibrationBaseline = MotionVector.average(calibrationStandingSamples)
+            calibrationStandingPitch = average(calibrationStandingPitchSamples)
+            calibrationProgress?(.capturingSquats(repsCompleted: 0, repsTarget: targetCalibrationReps))
+            return
         }
 
-        guard let baseline = calibrationBaseline else {
+        guard let baseline = calibrationBaseline, let standingPitch = calibrationStandingPitch else {
             emitCalibrationResult(.failure(.insufficientStableSamples))
             return
         }
 
         let depthAngle = gravity.angle(to: baseline)
-        calibrationMaxDepthAngle = max(calibrationMaxDepthAngle, depthAngle)
-        calibrationMaxRotationRate = max(calibrationMaxRotationRate, rotationRateMagnitude)
+        let pitchDelta = abs(pitch - standingPitch)
+        updateCalibrationMotionState(depthAngle: depthAngle, pitchDelta: pitchDelta)
 
-        guard elapsed >= calibrationDuration else {
+        if completedCalibrationReps >= targetCalibrationReps {
+            calibrationProgress?(.analyzing)
+            emitCalibrationResult(buildCalibrationResult(from: baseline, standingPitch: standingPitch))
             return
         }
 
-        guard calibrationMaxDepthAngle >= minimumSquatDepthAngle else {
-            emitCalibrationResult(.failure(.insufficientSquatDepth))
+        if elapsed >= calibrationWindowDuration {
+            calibrationProgress?(.analyzing)
+            if completedCalibrationReps >= minimumCalibrationReps {
+                emitCalibrationResult(buildCalibrationResult(from: baseline, standingPitch: standingPitch))
+            } else if completedCalibrationReps > 0 {
+                emitCalibrationResult(.failure(.insufficientReps))
+            } else {
+                emitCalibrationResult(.failure(.timedOut))
+            }
+        }
+    }
+
+    private func reportPreparationProgress(elapsed: TimeInterval) {
+        let remaining = max(Int(ceil(standingPreparationDuration - elapsed)), 0)
+        guard lastPreparationSecondsRemaining != remaining else {
             return
         }
 
-        let fullDepthAngle = max(calibrationMaxDepthAngle, 0.55)
-        let standingAngleTolerance = (fullDepthAngle * 0.18).clamped(to: 0.08...0.2)
-        let wristRaiseRateReference = max(calibrationMaxRotationRate, 4.0)
+        lastPreparationSecondsRemaining = remaining
+        calibrationProgress?(.preparingStanding(secondsRemaining: remaining))
+    }
 
-        let profile = SquatCalibrationProfile(
-            standingGravityX: baseline.x,
-            standingGravityY: baseline.y,
-            standingGravityZ: baseline.z,
-            fullDepthAngle: fullDepthAngle,
-            standingAngleTolerance: standingAngleTolerance,
-            wristRaiseRateReference: wristRaiseRateReference
+    private func updateCalibrationMotionState(depthAngle: Double, pitchDelta: Double) {
+        switch calibrationMotionState {
+        case .standing:
+            if depthAngle >= descendingAngleThreshold || pitchDelta >= descendingPitchThreshold {
+                calibrationMotionState = .descending
+                currentRepPeakAngle = depthAngle
+                currentRepPeakPitch = pitchDelta
+            }
+        case .descending:
+            currentRepPeakAngle = max(currentRepPeakAngle, depthAngle)
+            currentRepPeakPitch = max(currentRepPeakPitch, pitchDelta)
+
+            if depthAngle >= bottomAngleThreshold || pitchDelta >= bottomPitchThreshold {
+                calibrationMotionState = .bottom
+            } else if depthAngle <= standingAngleThreshold && pitchDelta <= standingPitchThreshold {
+                calibrationMotionState = .standing
+                currentRepPeakAngle = 0
+                currentRepPeakPitch = 0
+            }
+        case .bottom:
+            currentRepPeakAngle = max(currentRepPeakAngle, depthAngle)
+            currentRepPeakPitch = max(currentRepPeakPitch, pitchDelta)
+
+            if depthAngle <= standingAngleThreshold && pitchDelta <= standingPitchThreshold {
+                completedCalibrationReps += 1
+                completedRepPeakAngles.append(currentRepPeakAngle)
+                completedRepPeakPitchDeltas.append(currentRepPeakPitch)
+                calibrationMotionState = .standing
+                currentRepPeakAngle = 0
+                currentRepPeakPitch = 0
+                calibrationProgress?(
+                    .capturingSquats(
+                        repsCompleted: min(completedCalibrationReps, targetCalibrationReps),
+                        repsTarget: targetCalibrationReps
+                    )
+                )
+            }
+        }
+    }
+
+    private func buildCalibrationResult(from baseline: MotionVector, standingPitch: Double) -> SquatCalibrationResult {
+        let maxAngle = percentile(of: completedRepPeakAngles, percentile: 0.75)
+        let maxPitch = percentile(of: completedRepPeakPitchDeltas, percentile: 0.75)
+
+        let fullDepthAngle = max(maxAngle, 0.14)
+        let fullDepthPitchDelta = max(maxPitch, 0.1)
+
+        guard fullDepthAngle >= 0.12 || fullDepthPitchDelta >= 0.09 else {
+            return .failure(.insufficientSquatDepth)
+        }
+
+        let standingAngleTolerance = (fullDepthAngle * 0.3).clamped(to: 0.06...0.24)
+        let wristRaiseRateReference = max(calibrationMaxRotationRate * 0.75, 3.0)
+
+        return .success(
+            SquatCalibrationProfile(
+                standingGravityX: baseline.x,
+                standingGravityY: baseline.y,
+                standingGravityZ: baseline.z,
+                standingPitch: standingPitch,
+                fullDepthAngle: fullDepthAngle,
+                fullDepthPitchDelta: fullDepthPitchDelta,
+                standingAngleTolerance: standingAngleTolerance,
+                wristRaiseRateReference: wristRaiseRateReference
+            )
         )
-
-        emitCalibrationResult(.success(profile))
     }
 
     private func emitCalibrationResult(_ result: SquatCalibrationResult) {
-        let handler = calibrationHandler
+        let completion = calibrationCompletion
         stopInternal(notifyCalibrationInterrupted: false)
-        handler?(result)
+        completion?(result)
     }
 
     private func handleLiveMotion(_ motion: CMDeviceMotion) {
@@ -247,10 +376,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
             return
         }
 
-        guard
-            let profile = liveProfile,
-            let handler = liveHandler
-        else {
+        guard let profile = liveProfile, let handler = liveHandler else {
             return
         }
 
@@ -262,7 +388,11 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         ).normalized()
 
         let angle = currentGravity.angle(to: standingGravity)
-        let normalizedDepth = (angle / profile.fullDepthAngle).clamped(to: 0.0...1.0)
+        let pitchDelta = abs(motion.attitude.pitch - profile.standingPitch)
+
+        let angleDepth = (angle / profile.fullDepthAngle).clamped(to: 0.0...1.0)
+        let pitchDepth = (pitchDelta / profile.fullDepthPitchDelta).clamped(to: 0.0...1.0)
+        let normalizedDepth = max(angleDepth, pitchDepth)
 
         let rotationRateMagnitude = MotionVector(
             x: motion.rotationRate.x,
@@ -271,7 +401,10 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         ).magnitude
         let wristRaiseMagnitude = (rotationRateMagnitude / profile.wristRaiseRateReference).clamped(to: 0.0...1.0)
 
-        let isStandingStable = angle <= profile.standingAngleTolerance && wristRaiseMagnitude <= 0.35
+        let pitchStandingTolerance = max(profile.fullDepthPitchDelta * 0.35, 0.05)
+        let isStandingStable = angle <= profile.standingAngleTolerance
+            && pitchDelta <= pitchStandingTolerance
+            && wristRaiseMagnitude <= 0.6
 
         handler(
             SquatMotionSample(
@@ -281,6 +414,19 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
                 isStandingStable: isStandingStable
             )
         )
+    }
+
+    private func average(_ values: [Double]) -> Double {
+        guard values.isEmpty == false else { return 0.0 }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    private func percentile(of values: [Double], percentile: Double) -> Double {
+        guard values.isEmpty == false else { return 0.0 }
+        let sorted = values.sorted()
+        let clamped = percentile.clamped(to: 0.0...1.0)
+        let index = Int(Double(sorted.count - 1) * clamped)
+        return sorted[index]
     }
 }
 
