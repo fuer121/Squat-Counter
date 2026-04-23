@@ -5,6 +5,43 @@ enum SquatDetectionEvent: Codable, Equatable, Sendable {
     case motionStateChanged(SquatMotionState)
 }
 
+enum SquatNoRepReason: String, Codable, Equatable, Sendable {
+    case waitingForStableStanding
+    case descendingThresholdNotReached
+    case bottomThresholdNotReached
+    case standingThresholdNotReached
+    case standingUnstable
+    case wristRaiseFiltered
+    case cooldownActive
+}
+
+struct SquatDetectionDiagnostics: Equatable, Sendable {
+    let timestamp: TimeInterval
+    let normalizedDepth: Double
+    let wristRaiseMagnitude: Double
+    let isStandingStable: Bool
+    let currentMotionState: SquatMotionState
+    let noRepReason: SquatNoRepReason?
+}
+
+enum SquatSamplingMode: String, Equatable, Sendable {
+    case calibration
+    case live
+}
+
+struct SquatSamplingDiagnostics: Equatable, Sendable {
+    let mode: SquatSamplingMode
+    let isDeviceMotionAvailable: Bool
+    let didReceiveDeviceMotion: Bool
+    let timestamp: TimeInterval?
+    let calibrationDepthAngle: Double?
+    let calibrationPitchDelta: Double?
+    let calibrationRepsCompleted: Int?
+    let calibrationRepsTarget: Int?
+    let generatedFullDepthAngle: Double?
+    let generatedFullDepthPitchDelta: Double?
+}
+
 enum SquatDetectionMode: String, Codable, CaseIterable, Sendable {
     case simulation
     case live
@@ -193,11 +230,13 @@ protocol SquatMotionSampling: AnyObject {
     func pause()
     func resume()
     func stop()
+    func setDiagnosticsHandler(_ handler: ((SquatSamplingDiagnostics) -> Void)?)
 }
 
 final class NoopSquatMotionSampler: SquatMotionSampling {
     private(set) var isSamplingActive = false
     private(set) var isPaused = false
+    private var diagnosticsHandler: ((SquatSamplingDiagnostics) -> Void)?
 
     func startCalibration(
         progress: @escaping (SquatCalibrationPhase) -> Void,
@@ -228,6 +267,10 @@ final class NoopSquatMotionSampler: SquatMotionSampling {
         isSamplingActive = false
         isPaused = false
     }
+
+    func setDiagnosticsHandler(_ handler: ((SquatSamplingDiagnostics) -> Void)?) {
+        diagnosticsHandler = handler
+    }
 }
 
 protocol SquatDetectionManaging: AnyObject {
@@ -243,11 +286,13 @@ protocol SquatDetectionManaging: AnyObject {
     func stop()
     func simulateRep()
     func process(_ sample: SquatMotionSample)
+    func setDiagnosticsHandler(_ handler: ((SquatDetectionDiagnostics) -> Void)?)
 }
 
 final class SquatDetectionManager: SquatDetectionManaging {
     private let now: () -> TimeInterval
     private var eventHandler: ((SquatDetectionEvent) -> Void)?
+    private var diagnosticsHandler: ((SquatDetectionDiagnostics) -> Void)?
     private var standingStableSince: TimeInterval?
     private var cooldownUntil: TimeInterval = 0
 
@@ -309,6 +354,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
         if sample.timestamp < cooldownUntil {
             resetToStanding()
             updateStandingBaseline(with: sample)
+            emitDiagnostics(for: sample, noRepReason: .cooldownActive)
             return
         }
 
@@ -316,6 +362,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
            sample.normalizedDepth < thresholds.bottomThreshold {
             resetToStanding()
             standingStableSince = nil
+            emitDiagnostics(for: sample, noRepReason: .wristRaiseFiltered)
             return
         }
 
@@ -326,32 +373,56 @@ final class SquatDetectionManager: SquatDetectionManaging {
             if canBeginDescending, sample.normalizedDepth >= thresholds.descendingThreshold {
                 standingStableSince = nil
                 transition(to: .descending)
+                emitDiagnostics(for: sample, noRepReason: nil)
                 return
             }
 
             updateStandingBaseline(with: sample)
+            if sample.isStandingStable == false {
+                emitDiagnostics(for: sample, noRepReason: .standingUnstable)
+            } else if canBeginDescending == false {
+                emitDiagnostics(for: sample, noRepReason: .waitingForStableStanding)
+            } else {
+                emitDiagnostics(for: sample, noRepReason: .descendingThresholdNotReached)
+            }
         case .descending:
             if sample.normalizedDepth >= thresholds.bottomThreshold {
                 transition(to: .bottom)
+                emitDiagnostics(for: sample, noRepReason: nil)
             } else if sample.normalizedDepth <= thresholds.standingThreshold {
                 resetToStanding()
                 updateStandingBaseline(with: sample)
+                emitDiagnostics(for: sample, noRepReason: .bottomThresholdNotReached)
+            } else {
+                emitDiagnostics(for: sample, noRepReason: .bottomThresholdNotReached)
             }
         case .bottom:
             if sample.normalizedDepth <= thresholds.ascendingThreshold {
                 transition(to: .ascending)
+                emitDiagnostics(for: sample, noRepReason: nil)
+            } else {
+                emitDiagnostics(for: sample, noRepReason: .standingThresholdNotReached)
             }
         case .ascending:
             if sample.normalizedDepth <= thresholds.standingThreshold {
                 completeRep(at: sample.timestamp)
                 updateStandingBaseline(with: sample)
+                emitDiagnostics(for: sample, noRepReason: nil)
             } else if sample.normalizedDepth >= thresholds.bottomThreshold {
                 transition(to: .bottom)
+                emitDiagnostics(for: sample, noRepReason: .standingThresholdNotReached)
+            } else {
+                emitDiagnostics(for: sample, noRepReason: .standingThresholdNotReached)
             }
         case .repCompleted:
             resetToStanding()
             updateStandingBaseline(with: sample)
+            emitDiagnostics(for: sample, noRepReason: nil)
         }
+    }
+
+    func setDiagnosticsHandler(_ handler: ((SquatDetectionDiagnostics) -> Void)?) {
+        diagnosticsHandler = handler
     }
 
     private var isAcceptingInput: Bool {
@@ -401,6 +472,19 @@ final class SquatDetectionManager: SquatDetectionManaging {
         currentMotionState = .standing
         standingStableSince = nil
         cooldownUntil = 0
+    }
+
+    private func emitDiagnostics(for sample: SquatMotionSample, noRepReason: SquatNoRepReason?) {
+        diagnosticsHandler?(
+            SquatDetectionDiagnostics(
+                timestamp: sample.timestamp,
+                normalizedDepth: sample.normalizedDepth,
+                wristRaiseMagnitude: sample.wristRaiseMagnitude,
+                isStandingStable: sample.isStandingStable,
+                currentMotionState: currentMotionState,
+                noRepReason: noRepReason
+            )
+        )
     }
 }
 

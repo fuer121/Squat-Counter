@@ -85,6 +85,20 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var sessionStartedAt: Date?
     private var hasPreparedHealthWorkout = false
     private var calibrationProfile: SquatCalibrationProfile?
+    private var motionSamplingAvailable: Bool?
+    private var hasReceivedDeviceMotion = false
+    private var lastDeviceMotionTimestamp: TimeInterval?
+    private var lastCalibrationDepthAngle: Double?
+    private var lastCalibrationPitchDelta: Double?
+    private var lastCalibrationRepsCompleted: Int?
+    private var lastCalibrationRepsTarget: Int?
+    private var lastGeneratedFullDepthAngle: Double?
+    private var lastGeneratedFullDepthPitchDelta: Double?
+    private var lastLiveNormalizedDepth: Double?
+    private var lastLiveWristRaiseMagnitude: Double?
+    private var lastLiveStandingStable: Bool?
+    private var lastObservedMotionState: SquatMotionState = .standing
+    private var lastNoRepReason: SquatNoRepReason?
     private var cancellables: Set<AnyCancellable> = []
 
     var showsInternalDebugControls: Bool {
@@ -130,6 +144,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         applyPendingConfigIfNeeded()
         stopDetectionPipeline()
         resetWorkoutRuntime()
+        configureInternalDiagnosticsHandlers()
 
         if detectionMode == .live, calibrationProfile == nil {
             startCalibrationAndThenCountdown()
@@ -146,7 +161,25 @@ final class WorkoutSessionViewModel: ObservableObject {
         sessionStartedAt = nil
         hasPreparedHealthWorkout = false
         healthStatusMessage = nil
+        resetInternalDiagnosticsRuntime()
+    }
+
+    private func resetInternalDiagnosticsRuntime() {
         liveObservationMessage = nil
+        motionSamplingAvailable = nil
+        hasReceivedDeviceMotion = false
+        lastDeviceMotionTimestamp = nil
+        lastCalibrationDepthAngle = nil
+        lastCalibrationPitchDelta = nil
+        lastCalibrationRepsCompleted = nil
+        lastCalibrationRepsTarget = nil
+        lastGeneratedFullDepthAngle = nil
+        lastGeneratedFullDepthPitchDelta = nil
+        lastLiveNormalizedDepth = nil
+        lastLiveWristRaiseMagnitude = nil
+        lastLiveStandingStable = nil
+        lastObservedMotionState = .standing
+        lastNoRepReason = nil
     }
 
     private func startCalibrationAndThenCountdown() {
@@ -386,6 +419,14 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func startDetection() {
+        if internalDebugEnabled {
+            detectionManager.setDiagnosticsHandler { [weak self] diagnostics in
+                self?.handleDetectionDiagnostics(diagnostics)
+            }
+        } else {
+            detectionManager.setDiagnosticsHandler(nil)
+        }
+
         detectionManager.start(mode: detectionMode) { [weak self] event in
             self?.handleDetectionEvent(event)
         }
@@ -395,7 +436,6 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         motionSampler.startLiveSampling(with: calibrationProfile) { [weak self] sample in
-            self?.updateLiveObservation(with: sample)
             self?.detectionManager.process(sample)
         }
     }
@@ -427,12 +467,13 @@ final class WorkoutSessionViewModel: ObservableObject {
         switch event {
         case .repDetected:
             detectionStatusMessage = "识别成功：+1"
+            lastNoRepReason = nil
             applyRepIncrement()
+            refreshInternalDiagnosticsMessage()
         case .motionStateChanged(let state):
             detectionStatusMessage = detectionMessage(for: state)
-            if internalDebugEnabled {
-                liveObservationMessage = "识别状态：\(detectionStateText(from: event))"
-            }
+            lastObservedMotionState = state
+            refreshInternalDiagnosticsMessage()
         }
     }
 
@@ -601,7 +642,9 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private func stopDetectionPipeline() {
         motionSampler.stop()
+        motionSampler.setDiagnosticsHandler(nil)
         detectionManager.stop()
+        detectionManager.setDiagnosticsHandler(nil)
     }
 
     private func calibrationFailureMessage(for reason: SquatCalibrationFailureReason) -> String {
@@ -621,23 +664,132 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
     }
 
-    private func updateLiveObservation(with sample: SquatMotionSample) {
+    private func configureInternalDiagnosticsHandlers() {
+        guard internalDebugEnabled else {
+            motionSampler.setDiagnosticsHandler(nil)
+            detectionManager.setDiagnosticsHandler(nil)
+            liveObservationMessage = nil
+            return
+        }
+
+        motionSampler.setDiagnosticsHandler { [weak self] diagnostics in
+            self?.handleSamplingDiagnostics(diagnostics)
+        }
+    }
+
+    private func handleSamplingDiagnostics(_ diagnostics: SquatSamplingDiagnostics) {
+        motionSamplingAvailable = diagnostics.isDeviceMotionAvailable
+
+        if diagnostics.didReceiveDeviceMotion {
+            hasReceivedDeviceMotion = true
+            lastDeviceMotionTimestamp = diagnostics.timestamp
+        }
+
+        if let depthAngle = diagnostics.calibrationDepthAngle {
+            lastCalibrationDepthAngle = depthAngle
+        }
+        if let pitchDelta = diagnostics.calibrationPitchDelta {
+            lastCalibrationPitchDelta = pitchDelta
+        }
+        if let repsCompleted = diagnostics.calibrationRepsCompleted {
+            lastCalibrationRepsCompleted = repsCompleted
+        }
+        if let repsTarget = diagnostics.calibrationRepsTarget {
+            lastCalibrationRepsTarget = repsTarget
+        }
+        if let fullDepthAngle = diagnostics.generatedFullDepthAngle {
+            lastGeneratedFullDepthAngle = fullDepthAngle
+        }
+        if let fullDepthPitchDelta = diagnostics.generatedFullDepthPitchDelta {
+            lastGeneratedFullDepthPitchDelta = fullDepthPitchDelta
+        }
+
+        refreshInternalDiagnosticsMessage()
+    }
+
+    private func handleDetectionDiagnostics(_ diagnostics: SquatDetectionDiagnostics) {
+        lastLiveNormalizedDepth = diagnostics.normalizedDepth
+        lastLiveWristRaiseMagnitude = diagnostics.wristRaiseMagnitude
+        lastLiveStandingStable = diagnostics.isStandingStable
+        lastObservedMotionState = diagnostics.currentMotionState
+        lastNoRepReason = diagnostics.noRepReason
+        refreshInternalDiagnosticsMessage()
+    }
+
+    private func refreshInternalDiagnosticsMessage() {
         guard internalDebugEnabled else {
             return
         }
 
-        let depthText = String(format: "%.2f", sample.normalizedDepth)
-        let wristText = String(format: "%.2f", sample.wristRaiseMagnitude)
-        let standingText = sample.isStandingStable ? "稳定" : "不稳定"
-        liveObservationMessage = "深度:\(depthText) 抬腕:\(wristText) 站立:\(standingText)"
+        var lines: [String] = []
+
+        let availabilityText: String
+        switch motionSamplingAvailable {
+        case .some(true):
+            availabilityText = "可用"
+        case .some(false):
+            availabilityText = "不可用"
+        case .none:
+            availabilityText = "未知"
+        }
+
+        let receivedText = hasReceivedDeviceMotion ? "已收到" : "未收到"
+        if let timestamp = lastDeviceMotionTimestamp {
+            lines.append("CMDeviceMotion: \(availabilityText) / \(receivedText) / ts:\(String(format: "%.2f", timestamp))")
+        } else {
+            lines.append("CMDeviceMotion: \(availabilityText) / \(receivedText)")
+        }
+
+        if let depthAngle = lastCalibrationDepthAngle,
+           let pitchDelta = lastCalibrationPitchDelta,
+           let repsCompleted = lastCalibrationRepsCompleted,
+           let repsTarget = lastCalibrationRepsTarget {
+            lines.append(
+                "校准: depthAngle \(String(format: "%.3f", depthAngle)) / pitchDelta \(String(format: "%.3f", pitchDelta)) / reps \(repsCompleted)/\(repsTarget)"
+            )
+        }
+
+        if let fullDepthAngle = lastGeneratedFullDepthAngle,
+           let fullDepthPitchDelta = lastGeneratedFullDepthPitchDelta {
+            lines.append(
+                "校准Profile: fullDepthAngle \(String(format: "%.3f", fullDepthAngle)) / fullDepthPitchDelta \(String(format: "%.3f", fullDepthPitchDelta))"
+            )
+        }
+
+        if let depth = lastLiveNormalizedDepth,
+           let wrist = lastLiveWristRaiseMagnitude,
+           let standingStable = lastLiveStandingStable {
+            let standingText = standingStable ? "稳定" : "不稳定"
+            lines.append(
+                "Live: depth \(String(format: "%.2f", depth)) / wrist \(String(format: "%.2f", wrist)) / standing \(standingText) / state \(lastObservedMotionState.rawValue)"
+            )
+        } else {
+            lines.append("Live: state \(lastObservedMotionState.rawValue)")
+        }
+
+        if let noRepReason = lastNoRepReason {
+            lines.append("未计数原因: \(noRepReasonText(noRepReason))")
+        }
+
+        liveObservationMessage = lines.joined(separator: "\n")
     }
 
-    private func detectionStateText(from event: SquatDetectionEvent) -> String {
-        switch event {
-        case .repDetected:
-            return "repDetected"
-        case .motionStateChanged(let state):
-            return String(describing: state)
+    private func noRepReasonText(_ reason: SquatNoRepReason) -> String {
+        switch reason {
+        case .waitingForStableStanding:
+            return "站立稳定时间不足"
+        case .descendingThresholdNotReached:
+            return "未过下降阈值"
+        case .bottomThresholdNotReached:
+            return "未到底"
+        case .standingThresholdNotReached:
+            return "未回正"
+        case .standingUnstable:
+            return "站立不稳定"
+        case .wristRaiseFiltered:
+            return "抬腕过滤"
+        case .cooldownActive:
+            return "cooldown"
         }
     }
 

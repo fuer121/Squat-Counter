@@ -91,6 +91,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     private var calibrationProgress: ((SquatCalibrationPhase) -> Void)?
     private var calibrationCompletion: ((SquatCalibrationResult) -> Void)?
     private var lastPreparationSecondsRemaining: Int?
+    private var diagnosticsHandler: ((SquatSamplingDiagnostics) -> Void)?
 
     private var liveProfile: SquatCalibrationProfile?
     private var liveHandler: ((SquatMotionSample) -> Void)?
@@ -109,6 +110,11 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         completion: @escaping (SquatCalibrationResult) -> Void
     ) {
         guard motionManager.isDeviceMotionAvailable else {
+            emitSamplingDiagnostics(
+                mode: .calibration,
+                isDeviceMotionAvailable: false,
+                didReceiveDeviceMotion: false
+            )
             completion(.failure(.motionUnavailable))
             return
         }
@@ -133,12 +139,22 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         calibrationCompletion = completion
         lastPreparationSecondsRemaining = nil
 
+        emitSamplingDiagnostics(
+            mode: .calibration,
+            isDeviceMotionAvailable: true,
+            didReceiveDeviceMotion: false
+        )
         progress(.preparingStanding(secondsRemaining: Int(ceil(standingPreparationDuration))))
         startDeviceMotionUpdatesIfNeeded()
     }
 
     func startLiveSampling(with profile: SquatCalibrationProfile, handler: @escaping (SquatMotionSample) -> Void) {
         guard motionManager.isDeviceMotionAvailable else {
+            emitSamplingDiagnostics(
+                mode: .live,
+                isDeviceMotionAvailable: false,
+                didReceiveDeviceMotion: false
+            )
             return
         }
 
@@ -147,6 +163,11 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         isPaused = false
         liveProfile = profile
         liveHandler = handler
+        emitSamplingDiagnostics(
+            mode: .live,
+            isDeviceMotionAvailable: true,
+            didReceiveDeviceMotion: false
+        )
         startDeviceMotionUpdatesIfNeeded()
     }
 
@@ -162,6 +183,10 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
 
     func stop() {
         stopInternal(notifyCalibrationInterrupted: true)
+    }
+
+    func setDiagnosticsHandler(_ handler: ((SquatSamplingDiagnostics) -> Void)?) {
+        diagnosticsHandler = handler
     }
 
     private func stopInternal(notifyCalibrationInterrupted: Bool) {
@@ -211,6 +236,15 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     }
 
     private func handleDeviceMotion(_ motion: CMDeviceMotion) {
+        if let mode = diagnosticsMode(from: activeMode) {
+            emitSamplingDiagnostics(
+                mode: mode,
+                isDeviceMotionAvailable: motionManager.isDeviceMotionAvailable,
+                didReceiveDeviceMotion: true,
+                timestamp: motion.timestamp
+            )
+        }
+
         switch activeMode {
         case .idle:
             return
@@ -268,6 +302,16 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         let depthAngle = gravity.angle(to: baseline)
         let pitchDelta = abs(pitch - standingPitch)
         updateCalibrationMotionState(depthAngle: depthAngle, pitchDelta: pitchDelta)
+        emitSamplingDiagnostics(
+            mode: .calibration,
+            isDeviceMotionAvailable: motionManager.isDeviceMotionAvailable,
+            didReceiveDeviceMotion: true,
+            timestamp: motion.timestamp,
+            calibrationDepthAngle: depthAngle,
+            calibrationPitchDelta: pitchDelta,
+            calibrationRepsCompleted: completedCalibrationReps,
+            calibrationRepsTarget: targetCalibrationReps
+        )
 
         if completedCalibrationReps >= targetCalibrationReps {
             calibrationProgress?(.analyzing)
@@ -366,6 +410,16 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     }
 
     private func emitCalibrationResult(_ result: SquatCalibrationResult) {
+        if case .success(let profile) = result {
+            emitSamplingDiagnostics(
+                mode: .calibration,
+                isDeviceMotionAvailable: motionManager.isDeviceMotionAvailable,
+                didReceiveDeviceMotion: true,
+                generatedFullDepthAngle: profile.fullDepthAngle,
+                generatedFullDepthPitchDelta: profile.fullDepthPitchDelta
+            )
+        }
+
         let completion = calibrationCompletion
         stopInternal(notifyCalibrationInterrupted: false)
         completion?(result)
@@ -427,6 +481,45 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         let clamped = percentile.clamped(to: 0.0...1.0)
         let index = Int(Double(sorted.count - 1) * clamped)
         return sorted[index]
+    }
+
+    private func diagnosticsMode(from mode: ActiveMode) -> SquatSamplingMode? {
+        switch mode {
+        case .calibrating:
+            return .calibration
+        case .live:
+            return .live
+        case .idle:
+            return nil
+        }
+    }
+
+    private func emitSamplingDiagnostics(
+        mode: SquatSamplingMode,
+        isDeviceMotionAvailable: Bool,
+        didReceiveDeviceMotion: Bool,
+        timestamp: TimeInterval? = nil,
+        calibrationDepthAngle: Double? = nil,
+        calibrationPitchDelta: Double? = nil,
+        calibrationRepsCompleted: Int? = nil,
+        calibrationRepsTarget: Int? = nil,
+        generatedFullDepthAngle: Double? = nil,
+        generatedFullDepthPitchDelta: Double? = nil
+    ) {
+        diagnosticsHandler?(
+            SquatSamplingDiagnostics(
+                mode: mode,
+                isDeviceMotionAvailable: isDeviceMotionAvailable,
+                didReceiveDeviceMotion: didReceiveDeviceMotion,
+                timestamp: timestamp,
+                calibrationDepthAngle: calibrationDepthAngle,
+                calibrationPitchDelta: calibrationPitchDelta,
+                calibrationRepsCompleted: calibrationRepsCompleted,
+                calibrationRepsTarget: calibrationRepsTarget,
+                generatedFullDepthAngle: generatedFullDepthAngle,
+                generatedFullDepthPitchDelta: generatedFullDepthPitchDelta
+            )
+        )
     }
 }
 

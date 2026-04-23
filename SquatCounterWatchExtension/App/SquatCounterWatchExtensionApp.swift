@@ -2,7 +2,16 @@ import SwiftUI
 
 @main
 struct SquatCounterWatchExtensionApp: App {
-    private let internalDebugEnabled = ProcessInfo.processInfo.arguments.contains("--enable-internal-detection-debug")
+    #if DEBUG || BETA
+    private let buildChannelDebugEnabled = true
+    #else
+    private let buildChannelDebugEnabled = false
+    #endif
+
+    private var internalDebugEnabled: Bool {
+        buildChannelDebugEnabled
+            || ProcessInfo.processInfo.arguments.contains("--enable-internal-detection-debug")
+    }
 
     var body: some Scene {
         WindowGroup {

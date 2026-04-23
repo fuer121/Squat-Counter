@@ -67,6 +67,7 @@ struct WatchArchitectureOverviewView: View {
 
                 healthStatusView
                 detectionStatusView
+                liveObservationView
 
                 Stepper(value: repsBinding, in: WorkoutConfig.repsRange) {
                     settingLabel(title: "每组次数", value: "\(viewModel.config.repsPerSet)")

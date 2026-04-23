@@ -840,6 +840,72 @@ final class SquatDetectionManagerTests: XCTestCase {
         XCTAssertEqual(manager.currentMotionState, .standing)
     }
 
+    func testLiveDiagnosticsExposeNoRepReasonsForThresholdAndStability() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.3,
+            bottomThreshold: 0.7,
+            ascendingThreshold: 0.45,
+            standingThreshold: 0.12,
+            standingStabilityDuration: 0.3,
+            cooldownDuration: 0.8,
+            maximumWristRaiseMagnitude: 0.45
+        )
+        let manager = SquatDetectionManager(thresholds: thresholds)
+        var reasons: [SquatNoRepReason] = []
+        manager.setDiagnosticsHandler { diagnostics in
+            if let reason = diagnostics.noRepReason {
+                reasons.append(reason)
+            }
+        }
+
+        manager.start(mode: .live) { _ in }
+        manager.process(SquatMotionSample(timestamp: 0.0, normalizedDepth: 0.05, isStandingStable: false))
+        manager.process(SquatMotionSample(timestamp: 0.1, normalizedDepth: 0.05, isStandingStable: true))
+        manager.process(SquatMotionSample(timestamp: 0.45, normalizedDepth: 0.11, isStandingStable: true))
+        manager.process(SquatMotionSample(timestamp: 0.55, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 0.65, normalizedDepth: 0.45))
+        manager.process(SquatMotionSample(timestamp: 0.75, normalizedDepth: 0.72))
+        manager.process(SquatMotionSample(timestamp: 0.95, normalizedDepth: 0.4))
+        manager.process(SquatMotionSample(timestamp: 1.05, normalizedDepth: 0.25))
+
+        XCTAssertTrue(reasons.contains(.standingUnstable))
+        XCTAssertTrue(reasons.contains(.waitingForStableStanding))
+        XCTAssertTrue(reasons.contains(.descendingThresholdNotReached))
+        XCTAssertTrue(reasons.contains(.bottomThresholdNotReached))
+        XCTAssertTrue(reasons.contains(.standingThresholdNotReached))
+    }
+
+    func testLiveDiagnosticsExposeWristFilterAndCooldownReasons() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.3,
+            bottomThreshold: 0.7,
+            ascendingThreshold: 0.45,
+            standingThreshold: 0.12,
+            standingStabilityDuration: 0.0,
+            cooldownDuration: 0.8,
+            maximumWristRaiseMagnitude: 0.25
+        )
+        let manager = SquatDetectionManager(thresholds: thresholds)
+        var reasons: [SquatNoRepReason] = []
+        manager.setDiagnosticsHandler { diagnostics in
+            if let reason = diagnostics.noRepReason {
+                reasons.append(reason)
+            }
+        }
+
+        manager.start(mode: .live) { _ in }
+        manager.process(SquatMotionSample(timestamp: 0.0, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.1, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 0.2, normalizedDepth: 0.75))
+        manager.process(SquatMotionSample(timestamp: 0.3, normalizedDepth: 0.4))
+        manager.process(SquatMotionSample(timestamp: 0.4, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.5, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 1.5, normalizedDepth: 0.1, wristRaiseMagnitude: 0.8))
+
+        XCTAssertTrue(reasons.contains(.cooldownActive))
+        XCTAssertTrue(reasons.contains(.wristRaiseFiltered))
+    }
+
     func testThresholdsClampIntoSupportedRanges() {
         let thresholds = SquatDetectionThresholds(
             descendingThreshold: 0.0,
@@ -858,6 +924,74 @@ final class SquatDetectionManagerTests: XCTestCase {
         XCTAssertEqual(thresholds.standingStabilityDuration, 0.0)
         XCTAssertEqual(thresholds.cooldownDuration, 0.0)
         XCTAssertEqual(thresholds.maximumWristRaiseMagnitude, 1.0)
+    }
+}
+
+final class InternalDetectionDiagnosticsTests: XCTestCase {
+    func testInternalDiagnosticsMessageShowsCoreMotionCalibrationAndNoRepReason() {
+        let scheduler = TestTimerScheduler()
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        calibrationStore.saveCalibrationProfile(SquatCalibrationProfile())
+        let motionSampler = SquatMotionSamplerSpy()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            motionSampler: motionSampler,
+            internalDebugEnabled: true
+        )
+
+        viewModel.startWorkout()
+
+        motionSampler.emitDiagnostics(
+            SquatSamplingDiagnostics(
+                mode: .calibration,
+                isDeviceMotionAvailable: true,
+                didReceiveDeviceMotion: true,
+                timestamp: 12.3,
+                calibrationDepthAngle: 0.22,
+                calibrationPitchDelta: 0.11,
+                calibrationRepsCompleted: 3,
+                calibrationRepsTarget: 10,
+                generatedFullDepthAngle: nil,
+                generatedFullDepthPitchDelta: nil
+            )
+        )
+        motionSampler.emitDiagnostics(
+            SquatSamplingDiagnostics(
+                mode: .calibration,
+                isDeviceMotionAvailable: true,
+                didReceiveDeviceMotion: true,
+                timestamp: 13.5,
+                calibrationDepthAngle: nil,
+                calibrationPitchDelta: nil,
+                calibrationRepsCompleted: nil,
+                calibrationRepsTarget: nil,
+                generatedFullDepthAngle: 0.68,
+                generatedFullDepthPitchDelta: 0.29
+            )
+        )
+        scheduler.advance(by: 3)
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 13.8,
+                normalizedDepth: 0.31,
+                wristRaiseMagnitude: 0.09,
+                isStandingStable: true,
+                currentMotionState: .standing,
+                noRepReason: .descendingThresholdNotReached
+            )
+        )
+
+        let message = viewModel.liveObservationMessage ?? ""
+        XCTAssertTrue(message.contains("CMDeviceMotion"))
+        XCTAssertTrue(message.contains("校准:"))
+        XCTAssertTrue(message.contains("校准Profile"))
+        XCTAssertTrue(message.contains("未计数原因: 未过下降阈值"))
     }
 }
 
@@ -1036,6 +1170,7 @@ private final class SquatDetectionManagerSpy: SquatDetectionManaging {
     private(set) var simulatedRepCount = 0
     private(set) var processedSamples: [SquatMotionSample] = []
     private var handler: ((SquatDetectionEvent) -> Void)?
+    private var diagnosticsHandler: ((SquatDetectionDiagnostics) -> Void)?
 
     private(set) var mode: SquatDetectionMode?
     private(set) var isActive = false
@@ -1079,8 +1214,16 @@ private final class SquatDetectionManagerSpy: SquatDetectionManaging {
         processedSamples.append(sample)
     }
 
+    func setDiagnosticsHandler(_ handler: ((SquatDetectionDiagnostics) -> Void)?) {
+        diagnosticsHandler = handler
+    }
+
     func emit(_ event: SquatDetectionEvent) {
         handler?(event)
+    }
+
+    func emitDiagnostics(_ diagnostics: SquatDetectionDiagnostics) {
+        diagnosticsHandler?(diagnostics)
     }
 }
 
@@ -1097,6 +1240,7 @@ private final class SquatMotionSamplerSpy: SquatMotionSampling {
     private(set) var progressEvents: [SquatCalibrationPhase] = []
 
     private var calibrationHandler: ((SquatCalibrationResult) -> Void)?
+    private var diagnosticsHandler: ((SquatSamplingDiagnostics) -> Void)?
 
     func startCalibration(
         progress: @escaping (SquatCalibrationPhase) -> Void,
@@ -1139,6 +1283,14 @@ private final class SquatMotionSamplerSpy: SquatMotionSampling {
         isSamplingActive = false
         isPaused = false
         calibrationHandler = nil
+    }
+
+    func setDiagnosticsHandler(_ handler: ((SquatSamplingDiagnostics) -> Void)?) {
+        diagnosticsHandler = handler
+    }
+
+    func emitDiagnostics(_ diagnostics: SquatSamplingDiagnostics) {
+        diagnosticsHandler?(diagnostics)
     }
 }
 
