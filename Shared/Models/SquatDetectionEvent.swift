@@ -42,6 +42,60 @@ struct SquatSamplingDiagnostics: Equatable, Sendable {
     let generatedFullDepthPitchDelta: Double?
 }
 
+struct SquatCalibrationRepCompletionThresholds: Equatable, Sendable {
+    let angle: Double
+    let pitch: Double
+}
+
+struct SquatCalibrationRepCompletionPolicy: Equatable, Sendable {
+    let angleRecoveryRatio: Double
+    let pitchRecoveryRatio: Double
+    let minimumAngleThreshold: Double
+    let minimumPitchThreshold: Double
+    let maximumAngleThreshold: Double
+    let maximumPitchThreshold: Double
+    let stabilityDuration: TimeInterval
+
+    init(
+        angleRecoveryRatio: Double = 0.45,
+        pitchRecoveryRatio: Double = 0.45,
+        minimumAngleThreshold: Double = 0.08,
+        minimumPitchThreshold: Double = 0.07,
+        maximumAngleThreshold: Double = 0.2,
+        maximumPitchThreshold: Double = 0.2,
+        stabilityDuration: TimeInterval = 0.12
+    ) {
+        self.angleRecoveryRatio = angleRecoveryRatio.clamped(to: 0.2...0.8)
+        self.pitchRecoveryRatio = pitchRecoveryRatio.clamped(to: 0.2...0.8)
+        self.minimumAngleThreshold = minimumAngleThreshold.clamped(to: 0.03...0.2)
+        self.minimumPitchThreshold = minimumPitchThreshold.clamped(to: 0.03...0.2)
+        self.maximumAngleThreshold = maximumAngleThreshold.clamped(to: self.minimumAngleThreshold...0.3)
+        self.maximumPitchThreshold = maximumPitchThreshold.clamped(to: self.minimumPitchThreshold...0.3)
+        self.stabilityDuration = max(stabilityDuration, 0.0)
+    }
+
+    func thresholds(
+        peakAngle: Double,
+        peakPitch: Double,
+        standingAngleThreshold: Double,
+        standingPitchThreshold: Double
+    ) -> SquatCalibrationRepCompletionThresholds {
+        let angle = max(
+            standingAngleThreshold,
+            max(minimumAngleThreshold, peakAngle * angleRecoveryRatio)
+        )
+        .clamped(to: minimumAngleThreshold...maximumAngleThreshold)
+
+        let pitch = max(
+            standingPitchThreshold,
+            max(minimumPitchThreshold, peakPitch * pitchRecoveryRatio)
+        )
+        .clamped(to: minimumPitchThreshold...maximumPitchThreshold)
+
+        return SquatCalibrationRepCompletionThresholds(angle: angle, pitch: pitch)
+    }
+}
+
 enum SquatDetectionMode: String, Codable, CaseIterable, Sendable {
     case simulation
     case live

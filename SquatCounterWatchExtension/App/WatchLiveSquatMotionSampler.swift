@@ -72,6 +72,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     private let descendingPitchThreshold: Double = 0.06
     private let bottomPitchThreshold: Double = 0.14
     private let standingPitchThreshold: Double = 0.05
+    private let repCompletionPolicy = SquatCalibrationRepCompletionPolicy()
 
     private var activeMode: ActiveMode = .idle
     private(set) var isPaused = false
@@ -84,6 +85,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
     private var calibrationMotionState: CalibrationMotionState = .standing
     private var currentRepPeakAngle: Double = 0
     private var currentRepPeakPitch: Double = 0
+    private var standingRecoveryCandidateSince: TimeInterval?
     private var completedCalibrationReps = 0
     private var completedRepPeakAngles: [Double] = []
     private var completedRepPeakPitchDeltas: [Double] = []
@@ -131,6 +133,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         calibrationMotionState = .standing
         currentRepPeakAngle = 0
         currentRepPeakPitch = 0
+        standingRecoveryCandidateSince = nil
         completedCalibrationReps = 0
         completedRepPeakAngles = []
         completedRepPeakPitchDeltas = []
@@ -205,6 +208,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         calibrationMotionState = .standing
         currentRepPeakAngle = 0
         currentRepPeakPitch = 0
+        standingRecoveryCandidateSince = nil
         completedCalibrationReps = 0
         completedRepPeakAngles = []
         completedRepPeakPitchDeltas = []
@@ -301,7 +305,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
 
         let depthAngle = gravity.angle(to: baseline)
         let pitchDelta = abs(pitch - standingPitch)
-        updateCalibrationMotionState(depthAngle: depthAngle, pitchDelta: pitchDelta)
+        updateCalibrationMotionState(timestamp: motion.timestamp, depthAngle: depthAngle, pitchDelta: pitchDelta)
         emitSamplingDiagnostics(
             mode: .calibration,
             isDeviceMotionAvailable: motionManager.isDeviceMotionAvailable,
@@ -341,7 +345,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
         calibrationProgress?(.preparingStanding(secondsRemaining: remaining))
     }
 
-    private func updateCalibrationMotionState(depthAngle: Double, pitchDelta: Double) {
+    private func updateCalibrationMotionState(timestamp: TimeInterval, depthAngle: Double, pitchDelta: Double) {
         switch calibrationMotionState {
         case .standing:
             if depthAngle >= descendingAngleThreshold || pitchDelta >= descendingPitchThreshold {
@@ -349,6 +353,7 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
                 currentRepPeakAngle = depthAngle
                 currentRepPeakPitch = pitchDelta
             }
+            standingRecoveryCandidateSince = nil
         case .descending:
             currentRepPeakAngle = max(currentRepPeakAngle, depthAngle)
             currentRepPeakPitch = max(currentRepPeakPitch, pitchDelta)
@@ -360,23 +365,43 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
                 currentRepPeakAngle = 0
                 currentRepPeakPitch = 0
             }
+            standingRecoveryCandidateSince = nil
         case .bottom:
             currentRepPeakAngle = max(currentRepPeakAngle, depthAngle)
             currentRepPeakPitch = max(currentRepPeakPitch, pitchDelta)
 
-            if depthAngle <= standingAngleThreshold && pitchDelta <= standingPitchThreshold {
-                completedCalibrationReps += 1
-                completedRepPeakAngles.append(currentRepPeakAngle)
-                completedRepPeakPitchDeltas.append(currentRepPeakPitch)
-                calibrationMotionState = .standing
-                currentRepPeakAngle = 0
-                currentRepPeakPitch = 0
-                calibrationProgress?(
-                    .capturingSquats(
-                        repsCompleted: min(completedCalibrationReps, targetCalibrationReps),
-                        repsTarget: targetCalibrationReps
+            let repCompletionThresholds = repCompletionPolicy.thresholds(
+                peakAngle: currentRepPeakAngle,
+                peakPitch: currentRepPeakPitch,
+                standingAngleThreshold: standingAngleThreshold,
+                standingPitchThreshold: standingPitchThreshold
+            )
+            let reachedStandingRecovery = depthAngle <= repCompletionThresholds.angle
+                && pitchDelta <= repCompletionThresholds.pitch
+
+            if reachedStandingRecovery {
+                if standingRecoveryCandidateSince == nil {
+                    standingRecoveryCandidateSince = timestamp
+                }
+
+                let stableDuration = timestamp - (standingRecoveryCandidateSince ?? timestamp)
+                if stableDuration >= repCompletionPolicy.stabilityDuration {
+                    completedCalibrationReps += 1
+                    completedRepPeakAngles.append(currentRepPeakAngle)
+                    completedRepPeakPitchDeltas.append(currentRepPeakPitch)
+                    calibrationMotionState = .standing
+                    currentRepPeakAngle = 0
+                    currentRepPeakPitch = 0
+                    standingRecoveryCandidateSince = nil
+                    calibrationProgress?(
+                        .capturingSquats(
+                            repsCompleted: min(completedCalibrationReps, targetCalibrationReps),
+                            repsTarget: targetCalibrationReps
+                        )
                     )
-                )
+                }
+            } else {
+                standingRecoveryCandidateSince = nil
             }
         }
     }

@@ -927,6 +927,46 @@ final class SquatDetectionManagerTests: XCTestCase {
     }
 }
 
+final class SquatCalibrationRepCompletionPolicyTests: XCTestCase {
+    func testRecoveryThresholdsAreMoreTolerantThanStandingThresholds() {
+        let policy = SquatCalibrationRepCompletionPolicy()
+
+        let thresholds = policy.thresholds(
+            peakAngle: 0.30,
+            peakPitch: 0.252,
+            standingAngleThreshold: 0.06,
+            standingPitchThreshold: 0.05
+        )
+
+        XCTAssertGreaterThan(thresholds.angle, 0.06)
+        XCTAssertGreaterThan(thresholds.pitch, 0.05)
+        XCTAssertGreaterThanOrEqual(thresholds.angle, 0.12)
+        XCTAssertGreaterThanOrEqual(thresholds.pitch, 0.10)
+    }
+
+    func testRecoveryThresholdsClampToConfiguredBounds() {
+        let policy = SquatCalibrationRepCompletionPolicy()
+
+        let lowPeak = policy.thresholds(
+            peakAngle: 0.05,
+            peakPitch: 0.04,
+            standingAngleThreshold: 0.01,
+            standingPitchThreshold: 0.01
+        )
+        XCTAssertEqual(lowPeak.angle, 0.08, accuracy: 0.0001)
+        XCTAssertEqual(lowPeak.pitch, 0.07, accuracy: 0.0001)
+
+        let highPeak = policy.thresholds(
+            peakAngle: 0.9,
+            peakPitch: 0.9,
+            standingAngleThreshold: 0.06,
+            standingPitchThreshold: 0.05
+        )
+        XCTAssertEqual(highPeak.angle, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(highPeak.pitch, 0.2, accuracy: 0.0001)
+    }
+}
+
 final class InternalDetectionDiagnosticsTests: XCTestCase {
     func testInternalDiagnosticsMessageShowsCoreMotionCalibrationAndNoRepReason() {
         let scheduler = TestTimerScheduler()
