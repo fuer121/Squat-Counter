@@ -167,7 +167,7 @@ Agent 不能可靠代做这类动作，原因包括：
   - wristRaiseMagnitude：
   - isStandingStable：
   - 当前 SquatMotionState：
-  - 未计数原因（如有）：
+  - 未计数原因（如有，记录原文 key + 中文说明，例如 `descendingThresholdNotReached（未过下降阈值）`）：
 
 - 未计数原因汇总统计（按次数）：
   - 站立稳定时间不足：

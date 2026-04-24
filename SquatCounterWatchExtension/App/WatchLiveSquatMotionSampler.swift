@@ -370,14 +370,14 @@ final class WatchLiveSquatMotionSampler: SquatMotionSampling {
             currentRepPeakAngle = max(currentRepPeakAngle, depthAngle)
             currentRepPeakPitch = max(currentRepPeakPitch, pitchDelta)
 
-            let repCompletionThresholds = repCompletionPolicy.thresholds(
+            let reachedStandingRecovery = repCompletionPolicy.hasRecovered(
+                depthAngle: depthAngle,
+                pitchDelta: pitchDelta,
                 peakAngle: currentRepPeakAngle,
                 peakPitch: currentRepPeakPitch,
                 standingAngleThreshold: standingAngleThreshold,
                 standingPitchThreshold: standingPitchThreshold
             )
-            let reachedStandingRecovery = depthAngle <= repCompletionThresholds.angle
-                && pitchDelta <= repCompletionThresholds.pitch
 
             if reachedStandingRecovery {
                 if standingRecoveryCandidateSince == nil {

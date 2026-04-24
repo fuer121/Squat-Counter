@@ -590,6 +590,29 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.progress.totalCompletedReps, 0)
     }
 
+    func testRepDetectedIsIgnoredWhenViewModelIsResting() {
+        let scheduler = TestTimerScheduler()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = makeTrainingViewModel(
+            config: WorkoutConfig(repsPerSet: 2, totalSets: 2, restSeconds: 15),
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            scheduler: scheduler
+        )
+
+        completeCurrentSet(on: viewModel, repsPerSet: 2)
+        XCTAssertEqual(viewModel.state, .resting)
+        XCTAssertEqual(viewModel.progress.totalCompletedReps, 2)
+        XCTAssertEqual(viewModel.progress.currentRep, 0)
+
+        detectionManager.emit(.repDetected)
+
+        XCTAssertEqual(viewModel.state, .resting)
+        XCTAssertEqual(viewModel.progress.totalCompletedReps, 2)
+        XCTAssertEqual(viewModel.progress.currentRep, 0)
+    }
+
     func testReceivingConfigDuringTrainingQueuesItUntilSessionEnds() {
         let suiteName = #function
         let defaults = makeUserDefaults(suiteName: suiteName)
@@ -866,7 +889,7 @@ final class SquatDetectionManagerTests: XCTestCase {
         manager.process(SquatMotionSample(timestamp: 0.65, normalizedDepth: 0.45))
         manager.process(SquatMotionSample(timestamp: 0.75, normalizedDepth: 0.72))
         manager.process(SquatMotionSample(timestamp: 0.95, normalizedDepth: 0.4))
-        manager.process(SquatMotionSample(timestamp: 1.05, normalizedDepth: 0.25))
+        manager.process(SquatMotionSample(timestamp: 1.05, normalizedDepth: 0.35))
 
         XCTAssertTrue(reasons.contains(.standingUnstable))
         XCTAssertTrue(reasons.contains(.waitingForStableStanding))
@@ -965,6 +988,54 @@ final class SquatCalibrationRepCompletionPolicyTests: XCTestCase {
         XCTAssertEqual(highPeak.angle, 0.2, accuracy: 0.0001)
         XCTAssertEqual(highPeak.pitch, 0.2, accuracy: 0.0001)
     }
+
+    func testHasRecoveredAcceptsSingleChannelRecoveryWhenOtherChannelNearStanding() {
+        let policy = SquatCalibrationRepCompletionPolicy()
+
+        XCTAssertTrue(
+            policy.hasRecovered(
+                depthAngle: 0.14,
+                pitchDelta: 0.17,
+                peakAngle: 0.30,
+                peakPitch: 0.30,
+                standingAngleThreshold: 0.06,
+                standingPitchThreshold: 0.05
+            )
+        )
+
+        XCTAssertTrue(
+            policy.hasRecovered(
+                depthAngle: 0.18,
+                pitchDelta: 0.14,
+                peakAngle: 0.30,
+                peakPitch: 0.30,
+                standingAngleThreshold: 0.06,
+                standingPitchThreshold: 0.05
+            )
+        )
+    }
+}
+
+final class SquatLiveRepCompletionPolicyTests: XCTestCase {
+    func testCompletionThresholdScalesWithPeakDepthAndRemainsBounded() {
+        let policy = SquatLiveRepCompletionPolicy()
+
+        let shallowThreshold = policy.threshold(
+            peakDepth: 0.32,
+            standingThreshold: 0.18,
+            bottomThreshold: 0.44
+        )
+        let deepThreshold = policy.threshold(
+            peakDepth: 0.90,
+            standingThreshold: 0.18,
+            bottomThreshold: 0.44
+        )
+
+        XCTAssertGreaterThanOrEqual(shallowThreshold, 0.18)
+        XCTAssertLessThanOrEqual(shallowThreshold, 0.34)
+        XCTAssertGreaterThanOrEqual(deepThreshold, shallowThreshold)
+        XCTAssertLessThanOrEqual(deepThreshold, 0.34)
+    }
 }
 
 final class InternalDetectionDiagnosticsTests: XCTestCase {
@@ -1031,7 +1102,57 @@ final class InternalDetectionDiagnosticsTests: XCTestCase {
         XCTAssertTrue(message.contains("CMDeviceMotion"))
         XCTAssertTrue(message.contains("校准:"))
         XCTAssertTrue(message.contains("校准Profile"))
-        XCTAssertTrue(message.contains("未计数原因: 未过下降阈值"))
+        XCTAssertTrue(message.contains("未计数原因: descendingThresholdNotReached（未过下降阈值）"))
+    }
+
+    func testInternalDiagnosticsKeepsLatestNoRepReasonUntilRepDetected() {
+        let scheduler = TestTimerScheduler()
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        calibrationStore.saveCalibrationProfile(SquatCalibrationProfile())
+        let motionSampler = SquatMotionSamplerSpy()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            motionSampler: motionSampler,
+            internalDebugEnabled: true
+        )
+
+        viewModel.startWorkout()
+        scheduler.advance(by: 3)
+
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 20.0,
+                normalizedDepth: 0.36,
+                wristRaiseMagnitude: 0.06,
+                isStandingStable: true,
+                currentMotionState: .standing,
+                noRepReason: .bottomThresholdNotReached
+            )
+        )
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 20.1,
+                normalizedDepth: 0.08,
+                wristRaiseMagnitude: 0.06,
+                isStandingStable: true,
+                currentMotionState: .standing,
+                noRepReason: nil
+            )
+        )
+
+        let messageBeforeRep = viewModel.liveObservationMessage ?? ""
+        XCTAssertTrue(messageBeforeRep.contains("未计数原因: bottomThresholdNotReached（未到底）"))
+
+        detectionManager.emit(.repDetected)
+
+        let messageAfterRep = viewModel.liveObservationMessage ?? ""
+        XCTAssertFalse(messageAfterRep.contains("未计数原因:"))
     }
 }
 

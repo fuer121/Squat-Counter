@@ -712,7 +712,9 @@ final class WorkoutSessionViewModel: ObservableObject {
         lastLiveWristRaiseMagnitude = diagnostics.wristRaiseMagnitude
         lastLiveStandingStable = diagnostics.isStandingStable
         lastObservedMotionState = diagnostics.currentMotionState
-        lastNoRepReason = diagnostics.noRepReason
+        if let noRepReason = diagnostics.noRepReason {
+            lastNoRepReason = noRepReason
+        }
         refreshInternalDiagnosticsMessage()
     }
 
@@ -768,7 +770,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         if let noRepReason = lastNoRepReason {
-            lines.append("未计数原因: \(noRepReasonText(noRepReason))")
+            lines.append("未计数原因: \(noRepReason.rawValue)（\(noRepReasonText(noRepReason))）")
         }
 
         liveObservationMessage = lines.joined(separator: "\n")

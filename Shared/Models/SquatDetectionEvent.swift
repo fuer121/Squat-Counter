@@ -54,16 +54,18 @@ struct SquatCalibrationRepCompletionPolicy: Equatable, Sendable {
     let minimumPitchThreshold: Double
     let maximumAngleThreshold: Double
     let maximumPitchThreshold: Double
+    let complementaryRecoveryMultiplier: Double
     let stabilityDuration: TimeInterval
 
     init(
-        angleRecoveryRatio: Double = 0.45,
-        pitchRecoveryRatio: Double = 0.45,
+        angleRecoveryRatio: Double = 0.55,
+        pitchRecoveryRatio: Double = 0.55,
         minimumAngleThreshold: Double = 0.08,
         minimumPitchThreshold: Double = 0.07,
         maximumAngleThreshold: Double = 0.2,
         maximumPitchThreshold: Double = 0.2,
-        stabilityDuration: TimeInterval = 0.12
+        complementaryRecoveryMultiplier: Double = 1.3,
+        stabilityDuration: TimeInterval = 0.08
     ) {
         self.angleRecoveryRatio = angleRecoveryRatio.clamped(to: 0.2...0.8)
         self.pitchRecoveryRatio = pitchRecoveryRatio.clamped(to: 0.2...0.8)
@@ -71,6 +73,7 @@ struct SquatCalibrationRepCompletionPolicy: Equatable, Sendable {
         self.minimumPitchThreshold = minimumPitchThreshold.clamped(to: 0.03...0.2)
         self.maximumAngleThreshold = maximumAngleThreshold.clamped(to: self.minimumAngleThreshold...0.3)
         self.maximumPitchThreshold = maximumPitchThreshold.clamped(to: self.minimumPitchThreshold...0.3)
+        self.complementaryRecoveryMultiplier = complementaryRecoveryMultiplier.clamped(to: 1.0...2.0)
         self.stabilityDuration = max(stabilityDuration, 0.0)
     }
 
@@ -94,6 +97,76 @@ struct SquatCalibrationRepCompletionPolicy: Equatable, Sendable {
 
         return SquatCalibrationRepCompletionThresholds(angle: angle, pitch: pitch)
     }
+
+    func hasRecovered(
+        depthAngle: Double,
+        pitchDelta: Double,
+        peakAngle: Double,
+        peakPitch: Double,
+        standingAngleThreshold: Double,
+        standingPitchThreshold: Double
+    ) -> Bool {
+        let recoveryThresholds = thresholds(
+            peakAngle: peakAngle,
+            peakPitch: peakPitch,
+            standingAngleThreshold: standingAngleThreshold,
+            standingPitchThreshold: standingPitchThreshold
+        )
+        let angleRecovered = depthAngle <= recoveryThresholds.angle
+        let pitchRecovered = pitchDelta <= recoveryThresholds.pitch
+
+        if angleRecovered && pitchRecovered {
+            return true
+        }
+
+        let relaxedAngle = max(
+            standingAngleThreshold,
+            recoveryThresholds.angle * complementaryRecoveryMultiplier
+        )
+        .clamped(to: standingAngleThreshold...0.35)
+        let relaxedPitch = max(
+            standingPitchThreshold,
+            recoveryThresholds.pitch * complementaryRecoveryMultiplier
+        )
+        .clamped(to: standingPitchThreshold...0.35)
+
+        if angleRecovered && pitchDelta <= relaxedPitch {
+            return true
+        }
+
+        if pitchRecovered && depthAngle <= relaxedAngle {
+            return true
+        }
+
+        return false
+    }
+}
+
+struct SquatLiveRepCompletionPolicy: Equatable, Sendable {
+    let recoveryRatio: Double
+    let minimumCompletionThreshold: Double
+    let maximumCompletionThreshold: Double
+
+    init(
+        recoveryRatio: Double = 0.42,
+        minimumCompletionThreshold: Double = 0.16,
+        maximumCompletionThreshold: Double = 0.34
+    ) {
+        self.recoveryRatio = recoveryRatio.clamped(to: 0.2...0.8)
+        self.minimumCompletionThreshold = minimumCompletionThreshold.clamped(to: 0.05...0.4)
+        self.maximumCompletionThreshold = maximumCompletionThreshold.clamped(to: self.minimumCompletionThreshold...0.5)
+    }
+
+    func threshold(
+        peakDepth: Double,
+        standingThreshold: Double,
+        bottomThreshold: Double
+    ) -> Double {
+        let floor = max(standingThreshold, minimumCompletionThreshold)
+        let ceiling = min(maximumCompletionThreshold, bottomThreshold - 0.08).clamped(to: floor...0.5)
+        let adaptive = max(standingThreshold, peakDepth * recoveryRatio)
+        return adaptive.clamped(to: floor...ceiling)
+    }
 }
 
 enum SquatDetectionMode: String, Codable, CaseIterable, Sendable {
@@ -111,12 +184,12 @@ struct SquatDetectionThresholds: Equatable, Sendable {
     let maximumWristRaiseMagnitude: Double
 
     init(
-        descendingThreshold: Double = 0.2,
-        bottomThreshold: Double = 0.48,
-        ascendingThreshold: Double = 0.28,
-        standingThreshold: Double = 0.16,
-        standingStabilityDuration: TimeInterval = 0.2,
-        cooldownDuration: TimeInterval = 0.8,
+        descendingThreshold: Double = 0.22,
+        bottomThreshold: Double = 0.44,
+        ascendingThreshold: Double = 0.24,
+        standingThreshold: Double = 0.18,
+        standingStabilityDuration: TimeInterval = 0.12,
+        cooldownDuration: TimeInterval = 0.55,
         maximumWristRaiseMagnitude: Double = 0.6
     ) {
         let clampedStanding = standingThreshold.clamped(to: 0.0...0.35)
@@ -345,10 +418,12 @@ protocol SquatDetectionManaging: AnyObject {
 
 final class SquatDetectionManager: SquatDetectionManaging {
     private let now: () -> TimeInterval
+    private let repCompletionPolicy: SquatLiveRepCompletionPolicy
     private var eventHandler: ((SquatDetectionEvent) -> Void)?
     private var diagnosticsHandler: ((SquatDetectionDiagnostics) -> Void)?
     private var standingStableSince: TimeInterval?
     private var cooldownUntil: TimeInterval = 0
+    private var currentRepPeakDepth: Double = 0
 
     private(set) var mode: SquatDetectionMode?
     private(set) var isActive = false
@@ -358,9 +433,11 @@ final class SquatDetectionManager: SquatDetectionManaging {
 
     init(
         thresholds: SquatDetectionThresholds = SquatDetectionThresholds(),
+        repCompletionPolicy: SquatLiveRepCompletionPolicy = SquatLiveRepCompletionPolicy(),
         now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     ) {
         self.thresholds = thresholds
+        self.repCompletionPolicy = repCompletionPolicy
         self.now = now
     }
 
@@ -426,6 +503,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
 
             if canBeginDescending, sample.normalizedDepth >= thresholds.descendingThreshold {
                 standingStableSince = nil
+                currentRepPeakDepth = sample.normalizedDepth
                 transition(to: .descending)
                 emitDiagnostics(for: sample, noRepReason: nil)
                 return
@@ -440,6 +518,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
                 emitDiagnostics(for: sample, noRepReason: .descendingThresholdNotReached)
             }
         case .descending:
+            currentRepPeakDepth = max(currentRepPeakDepth, sample.normalizedDepth)
             if sample.normalizedDepth >= thresholds.bottomThreshold {
                 transition(to: .bottom)
                 emitDiagnostics(for: sample, noRepReason: nil)
@@ -451,6 +530,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
                 emitDiagnostics(for: sample, noRepReason: .bottomThresholdNotReached)
             }
         case .bottom:
+            currentRepPeakDepth = max(currentRepPeakDepth, sample.normalizedDepth)
             if sample.normalizedDepth <= thresholds.ascendingThreshold {
                 transition(to: .ascending)
                 emitDiagnostics(for: sample, noRepReason: nil)
@@ -458,7 +538,13 @@ final class SquatDetectionManager: SquatDetectionManaging {
                 emitDiagnostics(for: sample, noRepReason: .standingThresholdNotReached)
             }
         case .ascending:
-            if sample.normalizedDepth <= thresholds.standingThreshold {
+            let completionThreshold = repCompletionPolicy.threshold(
+                peakDepth: currentRepPeakDepth,
+                standingThreshold: thresholds.standingThreshold,
+                bottomThreshold: thresholds.bottomThreshold
+            )
+
+            if sample.normalizedDepth <= completionThreshold {
                 completeRep(at: sample.timestamp)
                 updateStandingBaseline(with: sample)
                 emitDiagnostics(for: sample, noRepReason: nil)
@@ -514,11 +600,13 @@ final class SquatDetectionManager: SquatDetectionManaging {
         eventHandler?(.repDetected)
         cooldownUntil = timestamp + thresholds.cooldownDuration
         standingStableSince = nil
+        currentRepPeakDepth = 0
         currentMotionState = .repCompleted
         transition(to: .standing)
     }
 
     private func resetToStanding() {
+        currentRepPeakDepth = 0
         transition(to: .standing)
     }
 
@@ -526,6 +614,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
         currentMotionState = .standing
         standingStableSince = nil
         cooldownUntil = 0
+        currentRepPeakDepth = 0
     }
 
     private func emitDiagnostics(for sample: SquatMotionSample, noRepReason: SquatNoRepReason?) {
