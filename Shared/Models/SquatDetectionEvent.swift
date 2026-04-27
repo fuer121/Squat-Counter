@@ -148,9 +148,9 @@ struct SquatLiveRepCompletionPolicy: Equatable, Sendable {
     let maximumCompletionThreshold: Double
 
     init(
-        recoveryRatio: Double = 0.42,
+        recoveryRatio: Double = 0.36,
         minimumCompletionThreshold: Double = 0.16,
-        maximumCompletionThreshold: Double = 0.34
+        maximumCompletionThreshold: Double = 0.30
     ) {
         self.recoveryRatio = recoveryRatio.clamped(to: 0.2...0.8)
         self.minimumCompletionThreshold = minimumCompletionThreshold.clamped(to: 0.05...0.4)
@@ -500,8 +500,11 @@ final class SquatDetectionManager: SquatDetectionManaging {
         switch currentMotionState {
         case .standing:
             let canBeginDescending = hasStableStanding(at: sample.timestamp)
+            let canUseCurrentFrameForDescending = sample.wristRaiseMagnitude <= thresholds.maximumWristRaiseMagnitude
 
-            if canBeginDescending, sample.normalizedDepth >= thresholds.descendingThreshold {
+            if canBeginDescending,
+               canUseCurrentFrameForDescending,
+               sample.normalizedDepth >= thresholds.descendingThreshold {
                 standingStableSince = nil
                 currentRepPeakDepth = sample.normalizedDepth
                 transition(to: .descending)
@@ -510,7 +513,10 @@ final class SquatDetectionManager: SquatDetectionManaging {
             }
 
             updateStandingBaseline(with: sample)
-            if sample.isStandingStable == false {
+            if canUseCurrentFrameForDescending == false {
+                standingStableSince = nil
+                emitDiagnostics(for: sample, noRepReason: .wristRaiseFiltered)
+            } else if sample.isStandingStable == false {
                 emitDiagnostics(for: sample, noRepReason: .standingUnstable)
             } else if canBeginDescending == false {
                 emitDiagnostics(for: sample, noRepReason: .waitingForStableStanding)

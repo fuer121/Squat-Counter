@@ -55,6 +55,7 @@ struct NoopWorkoutHealthManager: WorkoutHealthManaging {
 
 final class WorkoutSessionViewModel: ObservableObject {
     private static let defaultTempoCueInterval: TimeInterval = 2.0
+    private static let maxRecentRawDiagnostics = 6
 
     @Published private(set) var state: WorkoutState = .idle
     @Published private(set) var progress: WorkoutProgress = .empty
@@ -99,6 +100,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var lastLiveStandingStable: Bool?
     private var lastObservedMotionState: SquatMotionState = .standing
     private var lastNoRepReason: SquatNoRepReason?
+    private var recentRawDiagnostics: [String] = []
     private var cancellables: Set<AnyCancellable> = []
 
     var showsInternalDebugControls: Bool {
@@ -180,6 +182,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         lastLiveStandingStable = nil
         lastObservedMotionState = .standing
         lastNoRepReason = nil
+        recentRawDiagnostics = []
     }
 
     private func startCalibrationAndThenCountdown() {
@@ -466,13 +469,23 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func handleDetectionEvent(_ event: SquatDetectionEvent) {
         switch event {
         case .repDetected:
+            guard state == .training else {
+                detectionStatusMessage = "识别事件已忽略（非训练态）"
+                appendRawDiagnostic(
+                    "event ts:\(String(format: "%.2f", ProcessInfo.processInfo.systemUptime)) key:nonTrainingRepIgnored state:\(state.rawValue)"
+                )
+                refreshInternalDiagnosticsMessage()
+                return
+            }
             detectionStatusMessage = "识别成功：+1"
             lastNoRepReason = nil
             applyRepIncrement()
             refreshInternalDiagnosticsMessage()
-        case .motionStateChanged(let state):
-            detectionStatusMessage = detectionMessage(for: state)
-            lastObservedMotionState = state
+        case .motionStateChanged(let motionState):
+            if state == .training {
+                detectionStatusMessage = detectionMessage(for: motionState)
+            }
+            lastObservedMotionState = motionState
             refreshInternalDiagnosticsMessage()
         }
     }
@@ -714,6 +727,9 @@ final class WorkoutSessionViewModel: ObservableObject {
         lastObservedMotionState = diagnostics.currentMotionState
         if let noRepReason = diagnostics.noRepReason {
             lastNoRepReason = noRepReason
+            appendRawDiagnostic(
+                "diag ts:\(String(format: "%.2f", diagnostics.timestamp)) key:\(noRepReason.rawValue) state:\(diagnostics.currentMotionState.rawValue) depth:\(String(format: "%.2f", diagnostics.normalizedDepth)) wrist:\(String(format: "%.2f", diagnostics.wristRaiseMagnitude))"
+            )
         }
         refreshInternalDiagnosticsMessage()
     }
@@ -773,7 +789,19 @@ final class WorkoutSessionViewModel: ObservableObject {
             lines.append("未计数原因: \(noRepReason.rawValue)（\(noRepReasonText(noRepReason))）")
         }
 
+        if recentRawDiagnostics.isEmpty == false {
+            lines.append("最近诊断原文:")
+            lines.append(contentsOf: recentRawDiagnostics.suffix(2))
+        }
+
         liveObservationMessage = lines.joined(separator: "\n")
+    }
+
+    private func appendRawDiagnostic(_ line: String) {
+        recentRawDiagnostics.append(line)
+        if recentRawDiagnostics.count > WorkoutSessionViewModel.maxRecentRawDiagnostics {
+            recentRawDiagnostics.removeFirst(recentRawDiagnostics.count - WorkoutSessionViewModel.maxRecentRawDiagnostics)
+        }
     }
 
     private func noRepReasonText(_ reason: SquatNoRepReason) -> String {

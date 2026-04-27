@@ -579,6 +579,7 @@ final class WorkoutSessionViewModelTests: XCTestCase {
             timerManager: TimerManager(scheduler: scheduler),
             hapticManager: HapticManagerSpy(),
             detectionManager: detectionManager,
+            internalDebugEnabled: true,
             scheduler: scheduler
         )
 
@@ -588,29 +589,39 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .paused)
         XCTAssertEqual(viewModel.progress.currentRep, 0)
         XCTAssertEqual(viewModel.progress.totalCompletedReps, 0)
+        XCTAssertEqual(viewModel.detectionStatusMessage, "识别事件已忽略（非训练态）")
+        XCTAssertTrue((viewModel.liveObservationMessage ?? "").contains("key:nonTrainingRepIgnored"))
     }
 
     func testRepDetectedIsIgnoredWhenViewModelIsResting() {
         let scheduler = TestTimerScheduler()
         let detectionManager = SquatDetectionManagerSpy()
         let viewModel = makeTrainingViewModel(
-            config: WorkoutConfig(repsPerSet: 2, totalSets: 2, restSeconds: 15),
+            config: WorkoutConfig(repsPerSet: 1, totalSets: 2, restSeconds: 15),
+            notificationCenter: NotificationCenter(),
             timerManager: TimerManager(scheduler: scheduler),
             hapticManager: HapticManagerSpy(),
             detectionManager: detectionManager,
+            internalDebugEnabled: true,
             scheduler: scheduler
         )
 
-        completeCurrentSet(on: viewModel, repsPerSet: 2)
+        let repsPerSet = viewModel.config.repsPerSet
+        completeCurrentSet(on: viewModel, repsPerSet: repsPerSet)
         XCTAssertEqual(viewModel.state, .resting)
-        XCTAssertEqual(viewModel.progress.totalCompletedReps, 2)
+        XCTAssertEqual(viewModel.progress.totalCompletedReps, repsPerSet)
         XCTAssertEqual(viewModel.progress.currentRep, 0)
+        let statusBefore = viewModel.detectionStatusMessage
+        let observationBefore = viewModel.liveObservationMessage
 
+        detectionManager.emit(.repDetected)
         detectionManager.emit(.repDetected)
 
         XCTAssertEqual(viewModel.state, .resting)
-        XCTAssertEqual(viewModel.progress.totalCompletedReps, 2)
+        XCTAssertEqual(viewModel.progress.totalCompletedReps, repsPerSet)
         XCTAssertEqual(viewModel.progress.currentRep, 0)
+        XCTAssertEqual(viewModel.detectionStatusMessage, statusBefore)
+        XCTAssertEqual(viewModel.liveObservationMessage, observationBefore)
     }
 
     func testReceivingConfigDuringTrainingQueuesItUntilSessionEnds() {
@@ -863,6 +874,70 @@ final class SquatDetectionManagerTests: XCTestCase {
         XCTAssertEqual(manager.currentMotionState, .standing)
     }
 
+    func testStandingHighWristFrameCannotStartDescending() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.3,
+            bottomThreshold: 0.7,
+            ascendingThreshold: 0.45,
+            standingThreshold: 0.12,
+            standingStabilityDuration: 0.3,
+            cooldownDuration: 0.8,
+            maximumWristRaiseMagnitude: 0.25
+        )
+        let manager = SquatDetectionManager(thresholds: thresholds)
+        var events: [SquatDetectionEvent] = []
+        var reasons: [SquatNoRepReason] = []
+        manager.setDiagnosticsHandler { diagnostics in
+            if let reason = diagnostics.noRepReason {
+                reasons.append(reason)
+            }
+        }
+
+        manager.start(mode: .live) { events.append($0) }
+        manager.process(SquatMotionSample(timestamp: 0.0, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.35, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.45, normalizedDepth: 0.36, wristRaiseMagnitude: 0.8))
+        manager.process(SquatMotionSample(timestamp: 0.55, normalizedDepth: 0.34, wristRaiseMagnitude: 0.82))
+
+        XCTAssertFalse(events.contains(.motionStateChanged(.descending)))
+        XCTAssertEqual(manager.currentMotionState, .standing)
+        XCTAssertGreaterThanOrEqual(reasons.filter { $0 == .wristRaiseFiltered }.count, 2)
+    }
+
+    func testPausedLiveModeDoesNotProcessRepUntilResumed() {
+        let thresholds = SquatDetectionThresholds(
+            descendingThreshold: 0.3,
+            bottomThreshold: 0.7,
+            ascendingThreshold: 0.45,
+            standingThreshold: 0.12,
+            standingStabilityDuration: 0.0,
+            cooldownDuration: 0.8,
+            maximumWristRaiseMagnitude: 0.45
+        )
+        let manager = SquatDetectionManager(thresholds: thresholds)
+        var events: [SquatDetectionEvent] = []
+
+        manager.start(mode: .live) { events.append($0) }
+        manager.pause()
+
+        manager.process(SquatMotionSample(timestamp: 0.0, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 0.1, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 0.2, normalizedDepth: 0.75))
+        manager.process(SquatMotionSample(timestamp: 0.3, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 0.4, normalizedDepth: 0.1))
+
+        XCTAssertFalse(events.contains(.repDetected))
+
+        manager.resume()
+        manager.process(SquatMotionSample(timestamp: 1.0, normalizedDepth: 0.05))
+        manager.process(SquatMotionSample(timestamp: 1.1, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 1.2, normalizedDepth: 0.75))
+        manager.process(SquatMotionSample(timestamp: 1.3, normalizedDepth: 0.35))
+        manager.process(SquatMotionSample(timestamp: 1.4, normalizedDepth: 0.1))
+
+        XCTAssertEqual(events.filter { $0 == .repDetected }.count, 1)
+    }
+
     func testLiveDiagnosticsExposeNoRepReasonsForThresholdAndStability() {
         let thresholds = SquatDetectionThresholds(
             descendingThreshold: 0.3,
@@ -1032,9 +1107,9 @@ final class SquatLiveRepCompletionPolicyTests: XCTestCase {
         )
 
         XCTAssertGreaterThanOrEqual(shallowThreshold, 0.18)
-        XCTAssertLessThanOrEqual(shallowThreshold, 0.34)
+        XCTAssertLessThanOrEqual(shallowThreshold, 0.30)
         XCTAssertGreaterThanOrEqual(deepThreshold, shallowThreshold)
-        XCTAssertLessThanOrEqual(deepThreshold, 0.34)
+        XCTAssertLessThanOrEqual(deepThreshold, 0.30)
     }
 }
 
@@ -1153,6 +1228,148 @@ final class InternalDetectionDiagnosticsTests: XCTestCase {
 
         let messageAfterRep = viewModel.liveObservationMessage ?? ""
         XCTAssertFalse(messageAfterRep.contains("未计数原因:"))
+    }
+
+    func testInternalDiagnosticsShowsTwoRecentRawNoRepFrames() {
+        let scheduler = TestTimerScheduler()
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        calibrationStore.saveCalibrationProfile(SquatCalibrationProfile())
+        let motionSampler = SquatMotionSamplerSpy()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            motionSampler: motionSampler,
+            internalDebugEnabled: true
+        )
+
+        viewModel.startWorkout()
+        scheduler.advance(by: 3)
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 30.0,
+                normalizedDepth: 0.36,
+                wristRaiseMagnitude: 0.76,
+                isStandingStable: false,
+                currentMotionState: .standing,
+                noRepReason: .wristRaiseFiltered
+            )
+        )
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 30.04,
+                normalizedDepth: 0.33,
+                wristRaiseMagnitude: 0.18,
+                isStandingStable: true,
+                currentMotionState: .ascending,
+                noRepReason: .standingThresholdNotReached
+            )
+        )
+
+        let message = viewModel.liveObservationMessage ?? ""
+        XCTAssertTrue(message.contains("最近诊断原文:"))
+        XCTAssertTrue(message.contains("key:wristRaiseFiltered"))
+        XCTAssertTrue(message.contains("key:standingThresholdNotReached"))
+    }
+
+    func testInternalDiagnosticsShowsTwoRawWristRaiseFilteredFrames() {
+        let scheduler = TestTimerScheduler()
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        calibrationStore.saveCalibrationProfile(SquatCalibrationProfile())
+        let motionSampler = SquatMotionSamplerSpy()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            motionSampler: motionSampler,
+            internalDebugEnabled: true
+        )
+
+        viewModel.startWorkout()
+        scheduler.advance(by: 3)
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 41.0,
+                normalizedDepth: 0.30,
+                wristRaiseMagnitude: 0.84,
+                isStandingStable: true,
+                currentMotionState: .standing,
+                noRepReason: .wristRaiseFiltered
+            )
+        )
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 41.03,
+                normalizedDepth: 0.31,
+                wristRaiseMagnitude: 0.81,
+                isStandingStable: true,
+                currentMotionState: .standing,
+                noRepReason: .wristRaiseFiltered
+            )
+        )
+
+        let message = viewModel.liveObservationMessage ?? ""
+        XCTAssertTrue(message.contains("最近诊断原文:"))
+        XCTAssertGreaterThanOrEqual(
+            message.components(separatedBy: "key:wristRaiseFiltered").count - 1,
+            2
+        )
+    }
+
+    func testInternalDiagnosticsShowsTwoRawStandingThresholdFrames() {
+        let scheduler = TestTimerScheduler()
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let calibrationStore = UserDefaultsSquatCalibrationStore(defaults: defaults)
+        calibrationStore.saveCalibrationProfile(SquatCalibrationProfile())
+        let motionSampler = SquatMotionSamplerSpy()
+        let detectionManager = SquatDetectionManagerSpy()
+        let viewModel = WorkoutSessionViewModel(
+            calibrationStore: calibrationStore,
+            timerManager: TimerManager(scheduler: scheduler),
+            hapticManager: HapticManagerSpy(),
+            detectionManager: detectionManager,
+            motionSampler: motionSampler,
+            internalDebugEnabled: true
+        )
+
+        viewModel.startWorkout()
+        scheduler.advance(by: 3)
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 52.0,
+                normalizedDepth: 0.34,
+                wristRaiseMagnitude: 0.16,
+                isStandingStable: true,
+                currentMotionState: .ascending,
+                noRepReason: .standingThresholdNotReached
+            )
+        )
+        detectionManager.emitDiagnostics(
+            SquatDetectionDiagnostics(
+                timestamp: 52.05,
+                normalizedDepth: 0.33,
+                wristRaiseMagnitude: 0.14,
+                isStandingStable: true,
+                currentMotionState: .ascending,
+                noRepReason: .standingThresholdNotReached
+            )
+        )
+
+        let message = viewModel.liveObservationMessage ?? ""
+        XCTAssertTrue(message.contains("最近诊断原文:"))
+        XCTAssertGreaterThanOrEqual(
+            message.components(separatedBy: "key:standingThresholdNotReached").count - 1,
+            2
+        )
     }
 }
 

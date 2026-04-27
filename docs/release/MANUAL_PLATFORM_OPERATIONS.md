@@ -139,6 +139,9 @@ Agent 不能可靠代做这类动作，原因包括：
 2. 校准完成后进入训练态，连续执行 3-5 次标准深蹲并记录 live 诊断文本。
 3. 对未计数动作记录“当下的未计数原因”。
 4. 补做半蹲/抬腕/轻晃动各 1-2 次，观察原因分类是否与预期一致。
+5. 必填：抓取两组“同屏 raw 原文”。
+   - 抬手误计场景：同一屏内至少 2 条 `key:wristRaiseFiltered` 原文。
+   - 标准深蹲漏计场景：同一屏内至少 2 条漏计相关 raw 原文（例如 `key:standingThresholdNotReached`）。
 
 诊断回传模板：
 
@@ -168,6 +171,10 @@ Agent 不能可靠代做这类动作，原因包括：
   - isStandingStable：
   - 当前 SquatMotionState：
   - 未计数原因（如有，记录原文 key + 中文说明，例如 `descendingThresholdNotReached（未过下降阈值）`）：
+
+- 同屏 raw 原文抓取（本轮必填）：
+  - 抬手误计场景：贴出同一屏内至少 2 条 raw 原文（例如 `key:wristRaiseFiltered`）：
+  - 标准深蹲漏计场景：贴出同一屏内至少 2 条 raw 原文（例如 `key:standingThresholdNotReached`）：
 
 - 未计数原因汇总统计（按次数）：
   - 站立稳定时间不足：
