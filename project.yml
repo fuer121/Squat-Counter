@@ -88,6 +88,7 @@ targets:
     dependencies:
       - sdk: HealthKit.framework
       - sdk: WatchConnectivity.framework
+      - sdk: CoreMotion.framework
   SquatCounterTests:
     type: bundle.unit-test
     platform: iOS
