@@ -79,6 +79,8 @@ protocol SquatDetectionManaging: AnyObject {
 
 final class SquatDetectionManager: SquatDetectionManaging {
     private let now: () -> TimeInterval
+    private let sampleProvider: SquatMotionSampleProviding
+    private let signalProcessor: SquatMotionSignalProcessor
     private var eventHandler: ((SquatDetectionEvent) -> Void)?
     private var standingStableSince: TimeInterval?
     private var cooldownUntil: TimeInterval = 0
@@ -91,10 +93,14 @@ final class SquatDetectionManager: SquatDetectionManaging {
 
     init(
         thresholds: SquatDetectionThresholds = SquatDetectionThresholds(),
-        now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+        now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        sampleProvider: SquatMotionSampleProviding = NoopSquatMotionSampleProvider(),
+        signalProcessor: SquatMotionSignalProcessor = SquatMotionSignalProcessor()
     ) {
         self.thresholds = thresholds
         self.now = now
+        self.sampleProvider = sampleProvider
+        self.signalProcessor = signalProcessor
     }
 
     func start(mode: SquatDetectionMode, handler: @escaping (SquatDetectionEvent) -> Void) {
@@ -103,6 +109,13 @@ final class SquatDetectionManager: SquatDetectionManaging {
         self.eventHandler = handler
         isActive = true
         isPaused = false
+
+        if mode == .live {
+            signalProcessor.reset()
+            sampleProvider.start { [weak self] snapshot in
+                self?.ingest(snapshot)
+            }
+        }
     }
 
     func pause() {
@@ -116,6 +129,7 @@ final class SquatDetectionManager: SquatDetectionManaging {
     }
 
     func stop() {
+        sampleProvider.stop()
         resetRuntimeState()
         eventHandler = nil
         mode = nil
@@ -184,6 +198,15 @@ final class SquatDetectionManager: SquatDetectionManaging {
             resetToStanding()
             updateStandingBaseline(with: sample)
         }
+    }
+
+    /// Feeds a raw motion snapshot through the signal processor and, once a
+    /// usable depth sample is produced, into the existing `process(_:)` state
+    /// machine. Only meaningful in `.live` mode.
+    private func ingest(_ snapshot: DeviceMotionSnapshot) {
+        guard mode == .live, isAcceptingInput else { return }
+        guard let sample = signalProcessor.process(snapshot) else { return }
+        process(sample)
     }
 
     private var isAcceptingInput: Bool {

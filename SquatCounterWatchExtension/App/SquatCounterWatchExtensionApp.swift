@@ -4,7 +4,7 @@ import SwiftUI
 struct SquatCounterWatchExtensionApp: App {
     var body: some Scene {
         WindowGroup {
-            WatchArchitectureOverviewView(healthManager: WatchWorkoutHealthManager())
+            WorkoutRootView(healthManager: WatchWorkoutHealthManager())
         }
     }
 }
